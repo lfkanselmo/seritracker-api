@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: seritracker-api
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/seritracker
+    username: postgres
+    password: 1152
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  security:
+    user:
+      name: admin
+      password: admin
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.seritracker: DEBUG
+    org.hibernate.SQL: DEBUG
