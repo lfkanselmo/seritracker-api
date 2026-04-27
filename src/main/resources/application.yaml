@@ -30,6 +30,10 @@ spring:
 server:
   port: 8080
 
+jwt:
+  secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+  expiration: 86400000
+
 tmdb:
   base-url: https://api.themoviedb.org/3
   token: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI4Yjg3MDBkODM3MDVlMzk5NjdhY2JmMzg2MjUyMjgwOCIsIm5iZiI6MTc3NzIyMzM0My45MDIwMDAyLCJzdWIiOiI2OWVlNDZhZjYwYmJmMDk5MTQwMjk1MGQiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.puek3YjhRS4O5KijO_HeRxdBKqmSJDF0xQbAqbNvFtE"
