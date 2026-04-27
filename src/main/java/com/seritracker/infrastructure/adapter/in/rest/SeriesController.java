@@ -1,5 +1,7 @@
 package com.seritracker.infrastructure.adapter.in.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
@@ -22,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/series")
 @RequiredArgsConstructor
+@Tag(name = "Series", description = "Gestión de series del usuario")
 public class SeriesController {
 
     // Usamos los puertos, nunca el servicio directamente
@@ -30,6 +33,7 @@ public class SeriesController {
     private final DeleteSeriesUseCase deleteSeriesUseCase;
     private final SearchSeriesUseCase searchSeriesUseCase;
 
+    @Operation(summary = "Listar todas las series del usuario")
     @GetMapping
     public ApiResponse<List<SeriesResponse>> listAll(
             @RequestParam Long userId,
@@ -44,6 +48,7 @@ public class SeriesController {
                 .toList());
     }
 
+    @Operation(summary = "Obtener detalle de una serie")
     @GetMapping("/{id}")
     public ApiResponse<SeriesResponse> getById(@PathVariable Long id) {
         return ApiResponse.ok(
@@ -51,6 +56,7 @@ public class SeriesController {
         );
     }
 
+    @Operation(summary = "Agregar una serie a la lista")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SeriesResponse> create(
@@ -66,6 +72,7 @@ public class SeriesController {
         return ApiResponse.created(SeriesResponse.from(created));
     }
 
+    @Operation(summary = "Actualizar estado de una serie")
     @PatchMapping("/{id}/status")
     public ApiResponse<SeriesResponse> updateStatus(
             @PathVariable Long id,
@@ -76,6 +83,7 @@ public class SeriesController {
         ));
     }
 
+    @Operation(summary = "Calificar una serie")
     @PatchMapping("/{id}/rating")
     public ApiResponse<SeriesResponse> updateRating(
             @PathVariable Long id,
@@ -86,6 +94,7 @@ public class SeriesController {
         ));
     }
 
+    @Operation(summary = "Actualizar episodios vistos")
     @PatchMapping("/{id}/episodes")
     public ApiResponse<SeriesResponse> updateEpisodes(
             @PathVariable Long id,
@@ -96,6 +105,7 @@ public class SeriesController {
         ));
     }
 
+    @Operation(summary = "Eliminar una serie de la lista")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> delete(@PathVariable Long id) {
