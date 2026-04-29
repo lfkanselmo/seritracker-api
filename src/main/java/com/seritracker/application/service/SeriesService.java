@@ -12,11 +12,13 @@ import com.seritracker.domain.port.in.UpdateSeriesUseCase;
 import com.seritracker.domain.port.out.TmdbClient;
 import com.seritracker.domain.port.out.UserSeriesRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeriesService implements
@@ -30,6 +32,7 @@ public class SeriesService implements
 
     @Override
     public UserSeries createSeries(Long userId, Integer tmdbId, String status) {
+        log.info("Creating series tmdbId={} for userId={} with status={}", tmdbId, userId, status);
         validateNoDuplicate(userId, tmdbId);
 
         Series tmdbData = tmdbClient.getSeriesDetails(tmdbId);
@@ -47,57 +50,73 @@ public class SeriesService implements
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        return userSeriesRepository.save(userSeries);
+        UserSeries saved = userSeriesRepository.save(userSeries);
+        log.info("Series id={} title='{}' created successfully for userId={}", saved.getId(), saved.getTitle(), userId);
+        return saved;
     }
 
     @Override
     public UserSeries updateStatus(Long id, SeriesStatus status) {
+        log.info("Updating status of series id={} to {}", id, status);
         UserSeries existing = findOrThrow(id);
-        return userSeriesRepository.save(existing.withStatus(status));
+        UserSeries updated = userSeriesRepository.save(existing.withStatus(status));
+        log.info("Series id={} status updated to {}", id, status);
+        return updated;
     }
 
     @Override
     public UserSeries updateRating(Long id, Integer rating) {
+        log.info("Updating rating of series id={} to {}", id, rating);
         UserSeries existing = findOrThrow(id);
         return userSeriesRepository.save(existing.withRating(rating));
     }
 
     @Override
     public UserSeries updateWatchedEpisodes(Long id, Integer episodes) {
+        log.info("Updating watched episodes of series id={} to {}", id, episodes);
         UserSeries existing = findOrThrow(id);
         return userSeriesRepository.save(existing.withWatchedEpisodes(episodes));
     }
 
     @Override
     public void deleteSeries(Long id) {
+        log.info("Deleting series id={}", id);
         findOrThrow(id);
         userSeriesRepository.deleteById(id);
+        log.info("Series id={} deleted successfully", id);
     }
 
     @Override
     public List<UserSeries> listAllByUser(Long userId) {
+        log.debug("Listing all series for userId={}", userId);
         return userSeriesRepository.findAllByUserId(userId);
     }
 
     @Override
     public List<UserSeries> listByStatus(Long userId, SeriesStatus status) {
+        log.debug("Listing series for userId={} with status={}", userId, status);
         return userSeriesRepository.findByUserIdAndStatus(userId, status);
     }
 
     @Override
     public UserSeries getById(Long id) {
+        log.debug("Fetching series id={}", id);
         return findOrThrow(id);
     }
 
-    // ── Métodos privados de apoyo ──────────────────────────────────────────
+    // ── Métodos privados ───────────────────────────────────────────────
 
     private UserSeries findOrThrow(Long id) {
         return userSeriesRepository.findById(id)
-                .orElseThrow(() -> new SeriesNotFoundException(id));
+                .orElseThrow(() -> {
+                    log.warn("Series id={} not found", id);
+                    return new SeriesNotFoundException(id);
+                });
     }
 
     private void validateNoDuplicate(Long userId, Integer tmdbId) {
         if (userSeriesRepository.existsByUserIdAndTmdbId(userId, tmdbId)) {
+            log.warn("Duplicate series tmdbId={} for userId={}", tmdbId, userId);
             throw new DuplicateSeriesException(tmdbId);
         }
     }

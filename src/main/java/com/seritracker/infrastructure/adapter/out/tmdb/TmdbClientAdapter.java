@@ -5,6 +5,7 @@ import com.seritracker.domain.port.out.TmdbClient;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSearchResponse;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSeriesResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TmdbClientAdapter implements TmdbClient {
@@ -28,6 +30,7 @@ public class TmdbClientAdapter implements TmdbClient {
 
     @Override
     public List<Series> searchSeries(String query) {
+        log.info("Searching TMDB for query='{}'", query);
         TmdbSearchResponse response = buildClient()
                 .get()
                 .uri("/search/tv?query={q}&language=es-ES", query)
@@ -39,6 +42,7 @@ public class TmdbClientAdapter implements TmdbClient {
             return Collections.emptyList();
         }
 
+        log.debug("TMDB search returned {} results for query='{}'", response.getResults().size(), query);
         return response.getResults().stream()
                 .map(r -> Series.builder()
                         .tmdbId(r.getId())
@@ -54,6 +58,7 @@ public class TmdbClientAdapter implements TmdbClient {
 
     @Override
     public Series getSeriesDetails(Integer tmdbId) {
+        log.info("Fetching TMDB details for tmdbId={}", tmdbId);
         TmdbSeriesResponse response = buildClient()
                 .get()
                 .uri("/tv/{id}?language=es-ES", tmdbId)

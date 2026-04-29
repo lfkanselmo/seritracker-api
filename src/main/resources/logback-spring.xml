@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ── Propiedades ─────────────────────────────────────────────── -->
+    <property name="LOG_PATH" value="logs"/>
+    <property name="APP_NAME" value="seritracker"/>
+
+    <!-- ── Patrón con color para desarrollo ───────────────────────── -->
+    <property name="CONSOLE_PATTERN"
+              value="%cyan(%d{HH:mm:ss}) %highlight(%-5level) %yellow([%X{requestId:-no-req}]) %magenta(%-40logger{40}) - %msg%n"/>
+
+    <!-- ── Patrón plano para archivo ──────────────────────────────── -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:-no-req}] %-40logger{40} - %msg%n"/>
+
+    <!-- ── Appender consola (dev) ──────────────────────────────────── -->
+    <springProfile name="default,dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_PATTERN}</pattern>
+            </encoder>
+        </appender>
+
+        <logger name="com.seritracker" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ── Appender archivo rotativo (prod) ───────────────────────── -->
+    <springProfile name="prod">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}-%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>1GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>${FILE_PATTERN}</pattern>
+            </encoder>
+        </appender>
+
+        <logger name="com.seritracker" level="INFO" additivity="false">
+            <appender-ref ref="FILE"/>
+        </logger>
+
+        <root level="WARN">
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>
