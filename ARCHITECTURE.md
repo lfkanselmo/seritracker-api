@@ -10,6 +10,7 @@
 | ORM | Spring Data JPA + Hibernate | — |
 | Documentación API | Swagger / OpenAPI 3 | — |
 | Autenticación | Spring Security + JWT | — |
+| Logging | SLF4J + Logback | — |
 | Build tool backend | Maven | v3.9 |
 
 ---
@@ -86,10 +87,12 @@ seritracker-api/
         │           ├── TmdbClientAdapter.java
         │           └── dto/
         │               └── TmdbSeriesResponse.java
-        └── config/
-            ├── SecurityConfig.java
-            ├── CorsConfig.java
-            └── SwaggerConfig.java
+        ├── config/
+        │   ├── SecurityConfig.java
+        │   ├── CorsConfig.java
+        │   └── SwaggerConfig.java
+        └── logging/
+            └── MdcFilter.java             ← Inyecta requestId en cada request
 ```
 
 ---
@@ -264,6 +267,7 @@ fix: correct episode count validation
 refactor: extract tmdb mapping to dedicated mapper
 docs: add swagger annotations to series controller
 test: add unit tests for SeriesService
+logs: add request tracing to SeriesService
 ```
 
 ---
@@ -289,6 +293,94 @@ test: add unit tests for SeriesService
   "timestamp": "2026-04-26T10:00:00"
 }
 ```
+
+---
+
+## Estrategia de Logging
+
+### Niveles por capa
+
+| Capa | Niveles permitidos | Cuándo usarlos |
+|------|--------------------|----------------|
+| `domain/` | ❌ Sin logs | El dominio no conoce infraestructura |
+| `application/service/` | `INFO`, `WARN`, `ERROR` | Flujos de negocio, errores de dominio |
+| `infrastructure/adapter/in/rest/` | `DEBUG` | Entrada de requests, parámetros |
+| `infrastructure/adapter/out/persistence/` | `DEBUG` | Queries, operaciones BD |
+| `infrastructure/adapter/out/tmdb/` | `INFO`, `WARN`, `ERROR` | Llamadas externas, fallos de API |
+| `infrastructure/config/` | `INFO` | Arranque, configuración |
+| `infrastructure/security/` | `WARN`, `ERROR` | Intentos fallidos, tokens inválidos |
+
+### Qué se loguea
+
+```
+✅ Inicio y fin de casos de uso con userId
+✅ Creación, actualización y eliminación de recursos
+✅ Llamadas a APIs externas (TMDB) con tmdbId
+✅ Errores de negocio — serie no encontrada, duplicados
+✅ Intentos de autenticación fallidos
+✅ Tiempo de respuesta de llamadas externas
+✅ Arranque de la aplicación
+```
+
+### Qué NUNCA se loguea
+
+```
+❌ Passwords en ningún formato
+❌ Tokens JWT completos — solo los primeros 10 caracteres si es necesario
+❌ Datos personales — email solo en DEBUG, nunca en INFO/WARN/ERROR
+❌ Stack traces completos en INFO/WARN — solo en ERROR
+❌ Respuestas completas de APIs externas
+```
+
+### Formato de mensajes
+
+```java
+// ✅ BIEN — acción + contexto + identificador
+log.info("Creating series tmdbId={} for userId={}", tmdbId, userId);
+log.info("Series id={} status updated to {}", id, status);
+log.warn("Series tmdbId={} not found in TMDB API", tmdbId);
+log.error("Failed to delete series id={}", id, exception);
+
+// ❌ MAL — vago, sin contexto
+log.info("Creating series");
+log.info("Done");
+log.error("Error: " + exception.getMessage()); // concatenación en lugar de parámetros
+```
+
+### MDC — Trazabilidad por request
+
+Cada request HTTP recibe un `requestId` único generado en `MdcFilter`.
+Este ID aparece en todos los logs del mismo request, permitiendo trazar el flujo completo:
+
+```
+2026-04-29 10:00:01 INFO  [req-abc123] SeriesService       - Creating series tmdbId=1396 for userId=2
+2026-04-29 10:00:01 DEBUG [req-abc123] TmdbClientAdapter   - Fetching details for tmdbId=1396
+2026-04-29 10:00:01 INFO  [req-abc123] SeriesService       - Series id=5 created successfully for userId=2
+```
+
+El `MdcFilter` vive en `infrastructure/logging/` y se registra como `@Component`.
+
+### Configuración por perfil
+
+```
+dev  → consola con colores, nivel DEBUG para com.seritracker
+prod → archivo rotativo diario, nivel INFO, formato JSON
+```
+
+Configurado en `src/main/resources/logback-spring.xml`.
+
+### Tipo de log por situación
+
+| Situación | Nivel |
+|-----------|-------|
+| Operación completada exitosamente | `INFO` |
+| Recurso no encontrado (esperado) | `WARN` |
+| Serie duplicada (esperado) | `WARN` |
+| Fallo en llamada a TMDB API | `ERROR` |
+| Token JWT inválido | `WARN` |
+| Error inesperado del sistema | `ERROR` |
+| Arranque/parada de la app | `INFO` |
+| Detalles de request entrante | `DEBUG` |
 
 ---
 
@@ -340,4 +432,7 @@ void should[Resultado]_when[Condicion]() {
 ✅ ¿Hay al menos un test por cada método de servicio?
 ✅ ¿El nombre del método describe exactamente lo que hace?
 ✅ ¿El commit sigue el formato feat/fix/refactor?
+✅ ¿Los logs no contienen passwords, tokens ni datos personales?
+✅ ¿Se usó el nivel de log correcto según la tabla de niveles?
+✅ ¿Los mensajes de log incluyen contexto (userId, id, tmdbId)?
 ```
