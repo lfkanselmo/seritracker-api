@@ -46,19 +46,38 @@ CREATE DATABASE seritracker;
 
 ### 3. Configurar variables de entorno
 
-Crea el archivo `.env.local` en la raíz del proyecto:
+Crea el archivo `.env.local` en la raíz del proyecto — este archivo **nunca debe subirse a Git** (ya está en `.gitignore`):
 
 ```properties
 DB_URL=jdbc:postgresql://localhost:5432/seritracker
 DB_USERNAME=postgres
-DB_PASSWORD=tu_password
-TMDB_TOKEN=tu_token_de_tmdb
-JWT_SECRET=5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+DB_PASSWORD=<tu_password_de_postgresql>
+TMDB_TOKEN=<tu_token_de_tmdb>
+JWT_SECRET=<tu_clave_secreta_generada>
 JWT_EXPIRATION=86400000
 LOG_LEVEL=DEBUG
 ```
 
-> Para obtener el token de TMDB regístrate en [themoviedb.org](https://www.themoviedb.org) y solicita una API key gratuita.
+#### Cómo obtener el token de TMDB
+
+1. Crea una cuenta gratuita en [themoviedb.org](https://www.themoviedb.org/signup)
+2. Ve a **Configuración → API** en tu perfil
+3. Solicita una API key — selecciona **Developer** y completa el formulario
+4. Copia el **API Read Access Token** (el token largo que empieza con `eyJ...`)
+
+#### Cómo generar el JWT Secret
+
+El secret debe ser una cadena hexadecimal de 256 bits (64 caracteres hex). Puedes generarla con:
+
+```bash
+# En Linux/Mac
+openssl rand -hex 32
+
+# En PowerShell (Windows)
+-join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+```
+
+> ⚠️ Nunca uses el mismo secret en desarrollo y producción. Nunca lo compartas ni lo subas a Git.
 
 ### 4. Ejecutar la aplicación
 
@@ -267,12 +286,14 @@ Para ejecutar en producción:
 ```bash
 java -jar target/seritracker-api-0.0.1-SNAPSHOT.jar \
   --spring.profiles.active=prod \
-  --DB_URL=jdbc:postgresql://host:5432/seritracker \
-  --DB_USERNAME=postgres \
-  --DB_PASSWORD=password \
-  --TMDB_TOKEN=token \
-  --JWT_SECRET=secret
+  --DB_URL=jdbc:postgresql://<host>:5432/seritracker \
+  --DB_USERNAME=<usuario> \
+  --DB_PASSWORD=<password> \
+  --TMDB_TOKEN=<tu_token_tmdb> \
+  --JWT_SECRET=<tu_secret_generado>
 ```
+
+> ⚠️ Nunca incluyas valores reales de credenciales en comandos que vayas a documentar o compartir.
 
 ---
 
@@ -283,13 +304,13 @@ java -jar target/seritracker-api-0.0.1-SNAPSHOT.jar \
 | `DB_URL` | URL de conexión a PostgreSQL | `jdbc:postgresql://localhost:5432/seritracker` |
 | `DB_USERNAME` | Usuario de PostgreSQL | `postgres` |
 | `DB_PASSWORD` | Contraseña de PostgreSQL | — |
-| `TMDB_TOKEN` | Token de autenticación de TMDB | — |
-| `JWT_SECRET` | Clave secreta para firmar JWT (hex 256 bits) | valor por defecto inseguro |
+| `TMDB_TOKEN` | Read Access Token de TMDB (ver instrucciones arriba) | — |
+| `JWT_SECRET` | Clave hex de 256 bits para firmar JWT (ver instrucciones arriba) | — |
 | `JWT_EXPIRATION` | Duración del JWT en milisegundos | `86400000` (24h) |
 | `PORT` | Puerto del servidor | `8080` |
 | `LOG_LEVEL` | Nivel de log para `com.seritracker` | `INFO` |
 
-> ⚠️ En producción siempre define `JWT_SECRET` con un valor seguro generado aleatoriamente.
+> ⚠️ Las variables `DB_PASSWORD`, `TMDB_TOKEN` y `JWT_SECRET` son obligatorias y nunca deben tener valores por defecto en producción.
 
 ---
 
