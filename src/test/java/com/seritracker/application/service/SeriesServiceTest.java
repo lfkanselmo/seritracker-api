@@ -82,7 +82,7 @@ class SeriesServiceTest {
             when(userSeriesRepository.save(any())).thenReturn(expected);
 
             // Act
-            UserSeries result = seriesService.createSeries(userId, tmdbId, "WATCHING");
+            UserSeries result = seriesService.createSeries(userId, tmdbId, SeriesStatus.WATCHING);
 
             // Assert
             assertThat(result).isNotNull();
@@ -100,7 +100,7 @@ class SeriesServiceTest {
             when(userSeriesRepository.existsByUserIdAndTmdbId(userId, tmdbId)).thenReturn(true);
 
             // Act & Assert
-            assertThatThrownBy(() -> seriesService.createSeries(userId, tmdbId, "WATCHING"))
+            assertThatThrownBy(() -> seriesService.createSeries(userId, tmdbId, SeriesStatus.WATCHING))
                     .isInstanceOf(DuplicateSeriesException.class);
 
             verify(userSeriesRepository, never()).save(any());

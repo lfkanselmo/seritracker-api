@@ -31,7 +31,7 @@ public class SeriesService implements
     private final TmdbClient tmdbClient;
 
     @Override
-    public UserSeries createSeries(Long userId, Integer tmdbId, String status) {
+    public UserSeries createSeries(Long userId, Integer tmdbId, SeriesStatus status) {
         log.info("Creating series tmdbId={} for userId={} with status={}", tmdbId, userId, status);
         validateNoDuplicate(userId, tmdbId);
 
@@ -44,7 +44,7 @@ public class SeriesService implements
                 .posterUrl(tmdbData.getPosterUrl())
                 .totalEpisodes(tmdbData.getTotalEpisodes())
                 .network(tmdbData.getNetwork())
-                .status(SeriesStatus.valueOf(status))
+                .status(status)
                 .watchedEpisodes(0)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())

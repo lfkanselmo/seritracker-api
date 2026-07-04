@@ -120,6 +120,15 @@ class SeriesControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].status").value("WATCHING"));
         }
+
+        @Test
+        @DisplayName("should return 400 when status query param is invalid")
+        void shouldReturn400_whenStatusQueryParamIsInvalid() throws Exception {
+            mockMvc.perform(get("/api/v1/series")
+                            .param("status", "NOT_A_STATUS"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
     }
 
     // ── GET /api/v1/series/{id} ────────────────────────────────────────
@@ -160,8 +169,8 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 201 when series created")
         void shouldReturn201_whenSeriesCreated() throws Exception {
-            CreateSeriesRequest request = new CreateSeriesRequest(1396, "WATCHING");
-            when(createSeriesUseCase.createSeries(1L, 1396, "WATCHING"))
+            CreateSeriesRequest request = new CreateSeriesRequest(1396, SeriesStatus.WATCHING);
+            when(createSeriesUseCase.createSeries(1L, 1396, SeriesStatus.WATCHING))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
 
             mockMvc.perform(post("/api/v1/series")
@@ -174,7 +183,7 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 409 when series is duplicate")
         void shouldReturn409_whenSeriesIsDuplicate() throws Exception {
-            CreateSeriesRequest request = new CreateSeriesRequest(1396, "WATCHING");
+            CreateSeriesRequest request = new CreateSeriesRequest(1396, SeriesStatus.WATCHING);
             when(createSeriesUseCase.createSeries(any(), any(), any()))
                     .thenThrow(new DuplicateSeriesException(1396));
 
@@ -194,6 +203,16 @@ class SeriesControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }
+
+        @Test
+        @DisplayName("should return 400 when status is not a valid enum value")
+        void shouldReturn400_whenStatusIsInvalid() throws Exception {
+            mockMvc.perform(post("/api/v1/series")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tmdbId\": 1396, \"status\": \"NOT_A_STATUS\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
     }
 
     // ── PATCH /api/v1/series/{id}/status ──────────────────────────────
@@ -205,7 +224,7 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 200 when status updated")
         void shouldReturn200_whenStatusUpdated() throws Exception {
-            UpdateStatusRequest request = new UpdateStatusRequest("COMPLETED");
+            UpdateStatusRequest request = new UpdateStatusRequest(SeriesStatus.COMPLETED);
             when(updateSeriesUseCase.updateStatus(1L, 1L, SeriesStatus.COMPLETED))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.COMPLETED));
 

@@ -39,11 +39,11 @@ public class SeriesController {
     @GetMapping
     public ApiResponse<List<SeriesResponse>> listAll(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) SeriesStatus status) {
 
         Long userId = principal.getId();
         List<UserSeries> result = (status != null)
-                ? searchSeriesUseCase.listByStatus(userId, SeriesStatus.valueOf(status))
+                ? searchSeriesUseCase.listByStatus(userId, status)
                 : searchSeriesUseCase.listAllByUser(userId);
 
         return ApiResponse.ok(result.stream()
@@ -71,7 +71,7 @@ public class SeriesController {
         UserSeries created = createSeriesUseCase.createSeries(
                 principal.getId(),
                 request.getTmdbId(),
-                request.getStatus() != null ? request.getStatus() : "WANT_TO_WATCH"
+                request.getStatus() != null ? request.getStatus() : SeriesStatus.WANT_TO_WATCH
         );
 
         return ApiResponse.created(SeriesResponse.from(created));
@@ -85,7 +85,7 @@ public class SeriesController {
             @Valid @RequestBody UpdateStatusRequest request) {
 
         return ApiResponse.ok(SeriesResponse.from(
-                updateSeriesUseCase.updateStatus(principal.getId(), id, SeriesStatus.valueOf(request.getStatus()))
+                updateSeriesUseCase.updateStatus(principal.getId(), id, request.getStatus())
         ));
     }
 
