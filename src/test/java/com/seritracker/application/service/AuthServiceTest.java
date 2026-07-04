@@ -1,10 +1,10 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.model.User;
+import com.seritracker.domain.port.out.UserRepository;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
-import com.seritracker.infrastructure.adapter.out.persistence.JpaUserRepository;
-import com.seritracker.infrastructure.adapter.out.persistence.entity.UserEntity;
 import com.seritracker.infrastructure.security.JwtService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 @DisplayName("AuthService")
 class AuthServiceTest {
 
-    @Mock private JpaUserRepository userRepository;
+    @Mock private UserRepository userRepository;
     @Mock private JwtService jwtService;
     @Mock private PasswordEncoder passwordEncoder;
 
@@ -35,14 +35,14 @@ class AuthServiceTest {
 
     // ── Factories ──────────────────────────────────────────────────────
 
-    private UserEntity buildUserEntity() {
-        UserEntity user = new UserEntity();
-        user.setId(1L);
-        user.setName("Test User");
-        user.setEmail("test@test.com");
-        user.setPasswordHash("hashed_password");
-        user.setRole("USER");
-        return user;
+    private User buildUser() {
+        return User.builder()
+                .id(1L)
+                .name("Test User")
+                .email("test@test.com")
+                .passwordHash("hashed_password")
+                .role("USER")
+                .build();
     }
 
     private RegisterRequest buildRegisterRequest() {
@@ -64,7 +64,7 @@ class AuthServiceTest {
         void shouldRegisterUser_whenEmailIsNotTaken() {
             // Arrange
             RegisterRequest request = buildRegisterRequest();
-            UserEntity saved = buildUserEntity();
+            User saved = buildUser();
 
             when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
             when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
@@ -102,7 +102,7 @@ class AuthServiceTest {
         void shouldEncodePassword_beforeSaving() {
             // Arrange
             RegisterRequest request = buildRegisterRequest();
-            UserEntity saved = buildUserEntity();
+            User saved = buildUser();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
             when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
@@ -128,7 +128,7 @@ class AuthServiceTest {
         void shouldReturnToken_whenCredentialsAreValid() {
             // Arrange
             LoginRequest request = buildLoginRequest();
-            UserEntity user = buildUserEntity();
+            User user = buildUser();
 
             when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(request.getPassword(), user.getPasswordHash())).thenReturn(true);
@@ -162,7 +162,7 @@ class AuthServiceTest {
         void shouldThrowBadCredentialsException_whenPasswordIsWrong() {
             // Arrange
             LoginRequest request = buildLoginRequest();
-            UserEntity user = buildUserEntity();
+            User user = buildUser();
 
             when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(request.getPassword(), user.getPasswordHash())).thenReturn(false);

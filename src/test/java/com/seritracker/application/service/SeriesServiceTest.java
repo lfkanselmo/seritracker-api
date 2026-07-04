@@ -118,6 +118,7 @@ class SeriesServiceTest {
         @DisplayName("should update status when series exists")
         void shouldUpdateStatus_whenSeriesExists() {
             // Arrange
+            Long userId = 1L;
             Long id = 1L;
             UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
             UserSeries updated  = buildUserSeries(id, SeriesStatus.COMPLETED);
@@ -126,7 +127,7 @@ class SeriesServiceTest {
             when(userSeriesRepository.save(any())).thenReturn(updated);
 
             // Act
-            UserSeries result = seriesService.updateStatus(id, SeriesStatus.COMPLETED);
+            UserSeries result = seriesService.updateStatus(userId, id, SeriesStatus.COMPLETED);
 
             // Assert
             assertThat(result.getStatus()).isEqualTo(SeriesStatus.COMPLETED);
@@ -137,11 +138,27 @@ class SeriesServiceTest {
         @DisplayName("should throw SeriesNotFoundException when series does not exist")
         void shouldThrowSeriesNotFoundException_whenSeriesDoesNotExist() {
             // Arrange
+            Long userId = 1L;
             Long id = 99L;
             when(userSeriesRepository.findById(id)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> seriesService.updateStatus(id, SeriesStatus.COMPLETED))
+            assertThatThrownBy(() -> seriesService.updateStatus(userId, id, SeriesStatus.COMPLETED))
+                    .isInstanceOf(SeriesNotFoundException.class);
+
+            verify(userSeriesRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw SeriesNotFoundException when series belongs to another user")
+        void shouldThrowSeriesNotFoundException_whenSeriesBelongsToAnotherUser() {
+            // Arrange
+            Long id = 1L;
+            UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING); // userId = 1L
+            when(userSeriesRepository.findById(id)).thenReturn(Optional.of(existing));
+
+            // Act & Assert
+            assertThatThrownBy(() -> seriesService.updateStatus(2L, id, SeriesStatus.COMPLETED))
                     .isInstanceOf(SeriesNotFoundException.class);
 
             verify(userSeriesRepository, never()).save(any());
@@ -158,6 +175,7 @@ class SeriesServiceTest {
         @DisplayName("should update rating when series exists")
         void shouldUpdateRating_whenSeriesExists() {
             // Arrange
+            Long userId = 1L;
             Long id = 1L;
             UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
             UserSeries updated  = existing.withRating(9);
@@ -166,7 +184,7 @@ class SeriesServiceTest {
             when(userSeriesRepository.save(any())).thenReturn(updated);
 
             // Act
-            UserSeries result = seriesService.updateRating(id, 9);
+            UserSeries result = seriesService.updateRating(userId, id, 9);
 
             // Assert
             assertThat(result.getRating()).isEqualTo(9);
@@ -177,11 +195,12 @@ class SeriesServiceTest {
         @DisplayName("should throw SeriesNotFoundException when series does not exist")
         void shouldThrowSeriesNotFoundException_whenSeriesDoesNotExist() {
             // Arrange
+            Long userId = 1L;
             Long id = 99L;
             when(userSeriesRepository.findById(id)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> seriesService.updateRating(id, 9))
+            assertThatThrownBy(() -> seriesService.updateRating(userId, id, 9))
                     .isInstanceOf(SeriesNotFoundException.class);
         }
     }
@@ -196,6 +215,7 @@ class SeriesServiceTest {
         @DisplayName("should update watched episodes when series exists")
         void shouldUpdateWatchedEpisodes_whenSeriesExists() {
             // Arrange
+            Long userId = 1L;
             Long id = 1L;
             UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
             UserSeries updated  = existing.withWatchedEpisodes(10);
@@ -204,7 +224,7 @@ class SeriesServiceTest {
             when(userSeriesRepository.save(any())).thenReturn(updated);
 
             // Act
-            UserSeries result = seriesService.updateWatchedEpisodes(id, 10);
+            UserSeries result = seriesService.updateWatchedEpisodes(userId, id, 10);
 
             // Assert
             assertThat(result.getWatchedEpisodes()).isEqualTo(10);
@@ -222,12 +242,13 @@ class SeriesServiceTest {
         @DisplayName("should delete series when it exists")
         void shouldDeleteSeries_whenItExists() {
             // Arrange
+            Long userId = 1L;
             Long id = 1L;
             UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
             when(userSeriesRepository.findById(id)).thenReturn(Optional.of(existing));
 
             // Act
-            seriesService.deleteSeries(id);
+            seriesService.deleteSeries(userId, id);
 
             // Assert
             verify(userSeriesRepository).deleteById(id);
@@ -237,11 +258,12 @@ class SeriesServiceTest {
         @DisplayName("should throw SeriesNotFoundException when series does not exist")
         void shouldThrowSeriesNotFoundException_whenSeriesDoesNotExist() {
             // Arrange
+            Long userId = 1L;
             Long id = 99L;
             when(userSeriesRepository.findById(id)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> seriesService.deleteSeries(id))
+            assertThatThrownBy(() -> seriesService.deleteSeries(userId, id))
                     .isInstanceOf(SeriesNotFoundException.class);
 
             verify(userSeriesRepository, never()).deleteById(any());
@@ -299,12 +321,13 @@ class SeriesServiceTest {
         @DisplayName("should return series when it exists")
         void shouldReturnSeries_whenItExists() {
             // Arrange
+            Long userId = 1L;
             Long id = 1L;
             UserSeries expected = buildUserSeries(id, SeriesStatus.WATCHING);
             when(userSeriesRepository.findById(id)).thenReturn(Optional.of(expected));
 
             // Act
-            UserSeries result = seriesService.getById(id);
+            UserSeries result = seriesService.getById(userId, id);
 
             // Assert
             assertThat(result).isNotNull();
@@ -315,11 +338,25 @@ class SeriesServiceTest {
         @DisplayName("should throw SeriesNotFoundException when series does not exist")
         void shouldThrowSeriesNotFoundException_whenSeriesDoesNotExist() {
             // Arrange
+            Long userId = 1L;
             Long id = 99L;
             when(userSeriesRepository.findById(id)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> seriesService.getById(id))
+            assertThatThrownBy(() -> seriesService.getById(userId, id))
+                    .isInstanceOf(SeriesNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("should throw SeriesNotFoundException when series belongs to another user")
+        void shouldThrowSeriesNotFoundException_whenSeriesBelongsToAnotherUser() {
+            // Arrange
+            Long id = 1L;
+            UserSeries expected = buildUserSeries(id, SeriesStatus.WATCHING); // userId = 1L
+            when(userSeriesRepository.findById(id)).thenReturn(Optional.of(expected));
+
+            // Act & Assert
+            assertThatThrownBy(() -> seriesService.getById(2L, id))
                     .isInstanceOf(SeriesNotFoundException.class);
         }
     }

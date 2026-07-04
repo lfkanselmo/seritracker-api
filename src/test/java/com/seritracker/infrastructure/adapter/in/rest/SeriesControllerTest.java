@@ -14,6 +14,8 @@ import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodes
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.config.GlobalExceptionHandler;
+import com.seritracker.infrastructure.security.UserPrincipal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,6 +25,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -51,12 +56,22 @@ class SeriesControllerTest {
 
     @BeforeEach
     void setUp() {
+        UserPrincipal principal = new UserPrincipal(1L, "test@test.com", "hashed_password", List.of());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, List.of()));
+
         mockMvc = MockMvcBuilders
                 .standaloneSetup(seriesController)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
         objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     private UserSeries buildUserSeries(Long id, SeriesStatus status) {
@@ -88,7 +103,7 @@ class SeriesControllerTest {
             when(searchSeriesUseCase.listAllByUser(1L))
                     .thenReturn(List.of(buildUserSeries(1L, SeriesStatus.WATCHING)));
 
-            mockMvc.perform(get("/api/v1/series").param("userId", "1"))
+            mockMvc.perform(get("/api/v1/series"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data[0].title").value("Breaking Bad"));
@@ -101,7 +116,6 @@ class SeriesControllerTest {
                     .thenReturn(List.of(buildUserSeries(1L, SeriesStatus.WATCHING)));
 
             mockMvc.perform(get("/api/v1/series")
-                            .param("userId", "1")
                             .param("status", "WATCHING"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data[0].status").value("WATCHING"));
@@ -117,7 +131,7 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 200 with series")
         void shouldReturn200_withSeries() throws Exception {
-            when(searchSeriesUseCase.getById(1L))
+            when(searchSeriesUseCase.getById(1L, 1L))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
 
             mockMvc.perform(get("/api/v1/series/1"))
@@ -128,7 +142,7 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 404 when series not found")
         void shouldReturn404_whenSeriesNotFound() throws Exception {
-            when(searchSeriesUseCase.getById(99L))
+            when(searchSeriesUseCase.getById(1L, 99L))
                     .thenThrow(new SeriesNotFoundException(99L));
 
             mockMvc.perform(get("/api/v1/series/99"))
@@ -151,7 +165,6 @@ class SeriesControllerTest {
                     .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
 
             mockMvc.perform(post("/api/v1/series")
-                            .param("userId", "1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
@@ -166,7 +179,6 @@ class SeriesControllerTest {
                     .thenThrow(new DuplicateSeriesException(1396));
 
             mockMvc.perform(post("/api/v1/series")
-                            .param("userId", "1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict())
@@ -177,7 +189,6 @@ class SeriesControllerTest {
         @DisplayName("should return 400 when tmdbId is null")
         void shouldReturn400_whenTmdbIdIsNull() throws Exception {
             mockMvc.perform(post("/api/v1/series")
-                            .param("userId", "1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"tmdbId\": null, \"status\": \"WATCHING\"}"))
                     .andExpect(status().isBadRequest())
@@ -195,7 +206,7 @@ class SeriesControllerTest {
         @DisplayName("should return 200 when status updated")
         void shouldReturn200_whenStatusUpdated() throws Exception {
             UpdateStatusRequest request = new UpdateStatusRequest("COMPLETED");
-            when(updateSeriesUseCase.updateStatus(1L, SeriesStatus.COMPLETED))
+            when(updateSeriesUseCase.updateStatus(1L, 1L, SeriesStatus.COMPLETED))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.COMPLETED));
 
             mockMvc.perform(patch("/api/v1/series/1/status")
@@ -217,7 +228,7 @@ class SeriesControllerTest {
         void shouldReturn200_whenRatingUpdated() throws Exception {
             UpdateRatingRequest request = new UpdateRatingRequest(9);
             UserSeries updated = buildUserSeries(1L, SeriesStatus.WATCHING);
-            when(updateSeriesUseCase.updateRating(1L, 9)).thenReturn(updated);
+            when(updateSeriesUseCase.updateRating(1L, 1L, 9)).thenReturn(updated);
 
             mockMvc.perform(patch("/api/v1/series/1/rating")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -245,7 +256,7 @@ class SeriesControllerTest {
         @DisplayName("should return 200 when episodes updated")
         void shouldReturn200_whenEpisodesUpdated() throws Exception {
             UpdateEpisodesRequest request = new UpdateEpisodesRequest(10);
-            when(updateSeriesUseCase.updateWatchedEpisodes(1L, 10))
+            when(updateSeriesUseCase.updateWatchedEpisodes(1L, 1L, 10))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
 
             mockMvc.perform(patch("/api/v1/series/1/episodes")
@@ -264,7 +275,7 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 204 when series deleted")
         void shouldReturn204_whenSeriesDeleted() throws Exception {
-            doNothing().when(deleteSeriesUseCase).deleteSeries(1L);
+            doNothing().when(deleteSeriesUseCase).deleteSeries(1L, 1L);
 
             mockMvc.perform(delete("/api/v1/series/1"))
                     .andExpect(status().isNoContent());
@@ -274,7 +285,7 @@ class SeriesControllerTest {
         @DisplayName("should return 404 when series not found")
         void shouldReturn404_whenSeriesNotFound() throws Exception {
             doThrow(new SeriesNotFoundException(99L))
-                    .when(deleteSeriesUseCase).deleteSeries(99L);
+                    .when(deleteSeriesUseCase).deleteSeries(1L, 99L);
 
             mockMvc.perform(delete("/api/v1/series/99"))
                     .andExpect(status().isNotFound());
