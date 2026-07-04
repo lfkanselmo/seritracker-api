@@ -1,5 +1,6 @@
 package com.seritracker.infrastructure.adapter.out.tmdb;
 
+import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.domain.model.Series;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("TmdbClientAdapter")
 class TmdbClientAdapterTest {
@@ -142,5 +144,25 @@ class TmdbClientAdapterTest {
 
         assertThat(result.getNetwork()).isNull();
         assertThat(result.getGenres()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should throw SeriesNotFoundException when TMDB returns 404")
+    void getSeriesDetails_shouldThrowSeriesNotFoundException_whenTmdbReturns404() {
+        mockWebServer.enqueue(new MockResponse().setResponseCode(404));
+
+        assertThatThrownBy(() -> adapter.getSeriesDetails(999999))
+                .isInstanceOf(SeriesNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should throw SeriesNotFoundException when TMDB returns an empty body")
+    void getSeriesDetails_shouldThrowSeriesNotFoundException_whenBodyIsEmpty() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("{}")
+                .addHeader("Content-Type", "application/json"));
+
+        assertThatThrownBy(() -> adapter.getSeriesDetails(1396))
+                .isInstanceOf(SeriesNotFoundException.class);
     }
 }
