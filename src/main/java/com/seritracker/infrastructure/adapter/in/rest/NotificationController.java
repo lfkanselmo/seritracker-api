@@ -1,5 +1,6 @@
 package com.seritracker.infrastructure.adapter.in.rest;
 
+import com.seritracker.domain.port.in.CheckUpcomingEpisodesUseCase;
 import com.seritracker.domain.port.in.NotificationUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.NotificationResponse;
@@ -19,6 +20,7 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationUseCase notificationUseCase;
+    private final CheckUpcomingEpisodesUseCase checkUpcomingEpisodesUseCase;
 
     @Operation(summary = "Obtener notificaciones no leídas del usuario")
     @GetMapping
@@ -43,7 +45,7 @@ public class NotificationController {
     @Operation(summary = "Disparar verificación de episodios manualmente")
     @PostMapping("/check")
     public ApiResponse<Void> triggerCheck() {
-        notificationUseCase.checkUpcomingEpisodes();
+        checkUpcomingEpisodesUseCase.checkUpcomingEpisodes();
         return ApiResponse.noContent();
     }
 }

@@ -7,5 +7,4 @@ import java.util.List;
 public interface NotificationUseCase {
     List<Notification> getUnreadNotifications(Long userId);
     void markAsRead(Long userId, Long notificationId);
-    void checkUpcomingEpisodes();
 }
