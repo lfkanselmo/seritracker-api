@@ -12,5 +12,6 @@ public class User {
     String email;
     String name;
     String passwordHash;
+    String role;
     LocalDateTime createdAt;
 }

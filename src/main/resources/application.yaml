@@ -36,7 +36,7 @@ tmdb:
   image-base-url: https://image.tmdb.org/t/p/w300
 
 jwt:
-  secret: ${JWT_SECRET:1}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
 
 logging:

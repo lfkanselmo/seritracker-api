@@ -1,10 +1,10 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.model.User;
+import com.seritracker.domain.port.out.UserRepository;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
-import com.seritracker.infrastructure.adapter.out.persistence.JpaUserRepository;
-import com.seritracker.infrastructure.adapter.out.persistence.entity.UserEntity;
 import com.seritracker.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final JpaUserRepository userRepository;
+    private final UserRepository userRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
@@ -29,14 +29,14 @@ public class AuthService {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        UserEntity user = UserEntity.builder()
+        User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role("USER")
                 .build();
 
-        UserEntity saved = userRepository.save(user);
+        User saved = userRepository.save(user);
         log.info("User id={} registered successfully", saved.getId());
 
         String token = jwtService.generateToken(saved.getEmail());
@@ -51,7 +51,7 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         log.info("Login attempt");
 
-        UserEntity user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Login failed — user not found");
                     return new BadCredentialsException("Invalid credentials");

@@ -8,5 +8,5 @@ import java.util.List;
 public interface SearchSeriesUseCase {
     List<UserSeries> listAllByUser(Long userId);
     List<UserSeries> listByStatus(Long userId, SeriesStatus status);
-    UserSeries getById(Long id);
+    UserSeries getById(Long userId, Long id);
 }

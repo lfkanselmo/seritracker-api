@@ -14,9 +14,11 @@ import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRe
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.SeriesResponse;
+import com.seritracker.infrastructure.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,9 +38,10 @@ public class SeriesController {
     @Operation(summary = "Listar todas las series del usuario")
     @GetMapping
     public ApiResponse<List<SeriesResponse>> listAll(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status) {
 
+        Long userId = principal.getId();
         List<UserSeries> result = (status != null)
                 ? searchSeriesUseCase.listByStatus(userId, SeriesStatus.valueOf(status))
                 : searchSeriesUseCase.listAllByUser(userId);
@@ -50,9 +53,11 @@ public class SeriesController {
 
     @Operation(summary = "Obtener detalle de una serie")
     @GetMapping("/{id}")
-    public ApiResponse<SeriesResponse> getById(@PathVariable Long id) {
+    public ApiResponse<SeriesResponse> getById(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
         return ApiResponse.ok(
-                SeriesResponse.from(searchSeriesUseCase.getById(id))
+                SeriesResponse.from(searchSeriesUseCase.getById(principal.getId(), id))
         );
     }
 
@@ -60,11 +65,11 @@ public class SeriesController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SeriesResponse> create(
-            @RequestParam Long userId,
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateSeriesRequest request) {
 
         UserSeries created = createSeriesUseCase.createSeries(
-                userId,
+                principal.getId(),
                 request.getTmdbId(),
                 request.getStatus() != null ? request.getStatus() : "WANT_TO_WATCH"
         );
@@ -75,41 +80,46 @@ public class SeriesController {
     @Operation(summary = "Actualizar estado de una serie")
     @PatchMapping("/{id}/status")
     public ApiResponse<SeriesResponse> updateStatus(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody UpdateStatusRequest request) {
 
         return ApiResponse.ok(SeriesResponse.from(
-                updateSeriesUseCase.updateStatus(id, SeriesStatus.valueOf(request.getStatus()))
+                updateSeriesUseCase.updateStatus(principal.getId(), id, SeriesStatus.valueOf(request.getStatus()))
         ));
     }
 
     @Operation(summary = "Calificar una serie")
     @PatchMapping("/{id}/rating")
     public ApiResponse<SeriesResponse> updateRating(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody UpdateRatingRequest request) {
 
         return ApiResponse.ok(SeriesResponse.from(
-                updateSeriesUseCase.updateRating(id, request.getRating())
+                updateSeriesUseCase.updateRating(principal.getId(), id, request.getRating())
         ));
     }
 
     @Operation(summary = "Actualizar episodios vistos")
     @PatchMapping("/{id}/episodes")
     public ApiResponse<SeriesResponse> updateEpisodes(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @Valid @RequestBody UpdateEpisodesRequest request) {
 
         return ApiResponse.ok(SeriesResponse.from(
-                updateSeriesUseCase.updateWatchedEpisodes(id, request.getWatchedEpisodes())
+                updateSeriesUseCase.updateWatchedEpisodes(principal.getId(), id, request.getWatchedEpisodes())
         ));
     }
 
     @Operation(summary = "Eliminar una serie de la lista")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        deleteSeriesUseCase.deleteSeries(id);
+    public ApiResponse<Void> delete(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        deleteSeriesUseCase.deleteSeries(principal.getId(), id);
         return ApiResponse.noContent();
     }
 }

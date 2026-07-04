@@ -56,32 +56,32 @@ public class SeriesService implements
     }
 
     @Override
-    public UserSeries updateStatus(Long id, SeriesStatus status) {
+    public UserSeries updateStatus(Long userId, Long id, SeriesStatus status) {
         log.info("Updating status of series id={} to {}", id, status);
-        UserSeries existing = findOrThrow(id);
+        UserSeries existing = findOrThrow(userId, id);
         UserSeries updated = userSeriesRepository.save(existing.withStatus(status));
         log.info("Series id={} status updated to {}", id, status);
         return updated;
     }
 
     @Override
-    public UserSeries updateRating(Long id, Integer rating) {
+    public UserSeries updateRating(Long userId, Long id, Integer rating) {
         log.info("Updating rating of series id={} to {}", id, rating);
-        UserSeries existing = findOrThrow(id);
+        UserSeries existing = findOrThrow(userId, id);
         return userSeriesRepository.save(existing.withRating(rating));
     }
 
     @Override
-    public UserSeries updateWatchedEpisodes(Long id, Integer episodes) {
+    public UserSeries updateWatchedEpisodes(Long userId, Long id, Integer episodes) {
         log.info("Updating watched episodes of series id={} to {}", id, episodes);
-        UserSeries existing = findOrThrow(id);
+        UserSeries existing = findOrThrow(userId, id);
         return userSeriesRepository.save(existing.withWatchedEpisodes(episodes));
     }
 
     @Override
-    public void deleteSeries(Long id) {
+    public void deleteSeries(Long userId, Long id) {
         log.info("Deleting series id={}", id);
-        findOrThrow(id);
+        findOrThrow(userId, id);
         userSeriesRepository.deleteById(id);
         log.info("Series id={} deleted successfully", id);
     }
@@ -99,19 +99,26 @@ public class SeriesService implements
     }
 
     @Override
-    public UserSeries getById(Long id) {
+    public UserSeries getById(Long userId, Long id) {
         log.debug("Fetching series id={}", id);
-        return findOrThrow(id);
+        return findOrThrow(userId, id);
     }
 
     // ── Métodos privados ───────────────────────────────────────────────
 
-    private UserSeries findOrThrow(Long id) {
-        return userSeriesRepository.findById(id)
+    private UserSeries findOrThrow(Long userId, Long id) {
+        UserSeries series = userSeriesRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Series id={} not found", id);
                     return new SeriesNotFoundException(id);
                 });
+
+        if (!series.getUserId().equals(userId)) {
+            log.warn("Series id={} does not belong to userId={}", id, userId);
+            throw new SeriesNotFoundException(id);
+        }
+
+        return series;
     }
 
     private void validateNoDuplicate(Long userId, Integer tmdbId) {

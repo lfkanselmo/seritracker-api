@@ -3,9 +3,11 @@ package com.seritracker.infrastructure.adapter.in.rest;
 import com.seritracker.domain.port.in.NotificationUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.NotificationResponse;
+import com.seritracker.infrastructure.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,9 +22,9 @@ public class NotificationController {
 
     @Operation(summary = "Obtener notificaciones no leídas del usuario")
     @GetMapping
-    public ApiResponse<List<NotificationResponse>> getUnread(@RequestParam Long userId) {
+    public ApiResponse<List<NotificationResponse>> getUnread(@AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.ok(
-                notificationUseCase.getUnreadNotifications(userId)
+                notificationUseCase.getUnreadNotifications(principal.getId())
                         .stream()
                         .map(NotificationResponse::from)
                         .toList()
