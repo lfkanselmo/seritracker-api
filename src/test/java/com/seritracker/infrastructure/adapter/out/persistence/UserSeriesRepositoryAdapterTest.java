@@ -5,7 +5,6 @@ import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.infrastructure.adapter.out.persistence.entity.UserSeriesEntity;
 import com.seritracker.infrastructure.adapter.out.persistence.mapper.UserSeriesMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)

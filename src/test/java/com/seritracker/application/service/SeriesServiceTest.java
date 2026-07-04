@@ -9,7 +9,6 @@ import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.out.TmdbClient;
 import com.seritracker.domain.port.out.UserSeriesRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
