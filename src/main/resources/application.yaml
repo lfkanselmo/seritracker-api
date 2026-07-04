@@ -28,6 +28,11 @@ server:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
 
+login:
+  rate-limit:
+    max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+    window-minutes: ${LOGIN_WINDOW_MINUTES:15}
+
 tmdb:
   base-url: https://api.themoviedb.org/3
   token: ${TMDB_TOKEN:}
