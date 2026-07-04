@@ -25,4 +25,6 @@ public class UserSeries {
 
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+
+    Long version;
 }

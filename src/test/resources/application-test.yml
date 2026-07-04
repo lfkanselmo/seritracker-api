@@ -16,11 +16,6 @@ spring:
   flyway:
     enabled: false
 
-  security:
-    user:
-      name: admin
-      password: admin
-
 tmdb:
   base-url: https://api.themoviedb.org/3
   token: test-token

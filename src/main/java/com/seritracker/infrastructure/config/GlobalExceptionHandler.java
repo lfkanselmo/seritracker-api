@@ -5,6 +5,7 @@ import com.seritracker.domain.exception.NotificationNotFoundException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -63,6 +64,13 @@ public class GlobalExceptionHandler {
         String message = "Invalid value '%s' for parameter '%s'".formatted(ex.getValue(), ex.getName());
         log.warn(message);
         return buildError(message);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        log.warn("Optimistic locking conflict: {}", ex.getMessage());
+        return buildError("The resource was modified by another request, please retry");
     }
 
     @ExceptionHandler(BadCredentialsException.class)

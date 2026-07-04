@@ -23,6 +23,7 @@ public class UserSeriesMapper {
                 .notes(entity.getNotes())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .version(entity.getVersion())
                 .build();
     }
 
@@ -41,6 +42,7 @@ public class UserSeriesMapper {
                 .notes(domain.getNotes())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
+                .version(domain.getVersion())
                 .build();
     }
 }
