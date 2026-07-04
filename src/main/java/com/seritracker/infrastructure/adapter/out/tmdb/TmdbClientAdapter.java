@@ -5,17 +5,14 @@ import com.seritracker.domain.model.Series;
 import com.seritracker.domain.port.out.TmdbClient;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSearchResponse;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSeriesResponse;
-import io.netty.channel.ChannelOption;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.netty.http.client.HttpClient;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +23,7 @@ import java.util.Optional;
 public class TmdbClientAdapter implements TmdbClient {
 
     private static final int CONNECT_TIMEOUT_MS = 3000;
-    private static final Duration RESPONSE_TIMEOUT = Duration.ofSeconds(5);
+    private static final int RESPONSE_TIMEOUT_MS = 5000;
 
     @Value("${tmdb.base-url}")
     private String baseUrl;
@@ -44,8 +41,7 @@ public class TmdbClientAdapter implements TmdbClient {
                 .get()
                 .uri("/search/tv?query={q}&language=es-ES", query)
                 .retrieve()
-                .bodyToMono(TmdbSearchResponse.class)
-                .block();
+                .body(TmdbSearchResponse.class);
 
         if (response == null || response.getResults() == null) {
             return Collections.emptyList();
@@ -74,9 +70,8 @@ public class TmdbClientAdapter implements TmdbClient {
                     .get()
                     .uri("/tv/{id}?language=es-ES", tmdbId)
                     .retrieve()
-                    .bodyToMono(TmdbSeriesResponse.class)
-                    .block();
-        } catch (WebClientResponseException.NotFound e) {
+                    .body(TmdbSeriesResponse.class);
+        } catch (HttpClientErrorException.NotFound e) {
             throw new SeriesNotFoundException(tmdbId);
         }
 
@@ -108,15 +103,15 @@ public class TmdbClientAdapter implements TmdbClient {
                 .build();
     }
 
-    private WebClient buildClient() {
-        HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, CONNECT_TIMEOUT_MS)
-                .responseTimeout(RESPONSE_TIMEOUT);
+    private RestClient buildClient() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        requestFactory.setReadTimeout(RESPONSE_TIMEOUT_MS);
 
-        return WebClient.builder()
+        return RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + token)
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .requestFactory(requestFactory)
                 .build();
     }
 }
