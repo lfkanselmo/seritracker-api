@@ -1,6 +1,7 @@
 package com.seritracker.infrastructure.config;
 
 import com.seritracker.domain.exception.DuplicateSeriesException;
+import com.seritracker.domain.exception.NotificationNotFoundException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SeriesNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNotFound(SeriesNotFoundException ex) {
+        return buildError(ex.getMessage());
+    }
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleNotificationNotFound(NotificationNotFoundException ex) {
         return buildError(ex.getMessage());
     }
 

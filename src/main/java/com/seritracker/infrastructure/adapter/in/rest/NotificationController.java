@@ -33,8 +33,10 @@ public class NotificationController {
 
     @Operation(summary = "Marcar notificación como leída")
     @PatchMapping("/{id}/read")
-    public ApiResponse<Void> markAsRead(@PathVariable Long id) {
-        notificationUseCase.markAsRead(id);
+    public ApiResponse<Void> markAsRead(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        notificationUseCase.markAsRead(principal.getId(), id);
         return ApiResponse.noContent();
     }
 

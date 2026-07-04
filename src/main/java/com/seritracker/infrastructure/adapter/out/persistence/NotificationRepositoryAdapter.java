@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +21,12 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
         return mapper.toDomain(
                 jpaRepository.save(mapper.toEntity(notification))
         );
+    }
+
+    @Override
+    public Optional<Notification> findById(Long id) {
+        return jpaRepository.findById(id)
+                .map(mapper::toDomain);
     }
 
     @Override
