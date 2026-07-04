@@ -1,10 +1,10 @@
 package com.seritracker.domain.port.in;
 
 import com.seritracker.domain.model.Notification;
-
-import java.util.List;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 
 public interface NotificationUseCase {
-    List<Notification> getUnreadNotifications(Long userId);
+    PageResult<Notification> getUnreadNotifications(Long userId, PageRequest pageRequest);
     void markAsRead(Long userId, Long notificationId);
 }

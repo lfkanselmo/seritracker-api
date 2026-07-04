@@ -3,6 +3,8 @@ package com.seritracker.infrastructure.adapter.in.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seritracker.domain.exception.DuplicateSeriesException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
@@ -100,25 +102,28 @@ class SeriesControllerTest {
         @Test
         @DisplayName("should return 200 with series list")
         void shouldReturn200_withSeriesList() throws Exception {
-            when(searchSeriesUseCase.listAllByUser(1L))
-                    .thenReturn(List.of(buildUserSeries(1L, SeriesStatus.WATCHING)));
+            List<UserSeries> content = List.of(buildUserSeries(1L, SeriesStatus.WATCHING));
+            when(searchSeriesUseCase.listAllByUser(1L, PageRequest.of(0, 20)))
+                    .thenReturn(new PageResult<>(content, 0, 20, 1, 1));
 
             mockMvc.perform(get("/api/v1/series"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data[0].title").value("Breaking Bad"));
+                    .andExpect(jsonPath("$.data.content[0].title").value("Breaking Bad"))
+                    .andExpect(jsonPath("$.data.totalElements").value(1));
         }
 
         @Test
         @DisplayName("should filter by status when provided")
         void shouldFilterByStatus_whenProvided() throws Exception {
-            when(searchSeriesUseCase.listByStatus(1L, SeriesStatus.WATCHING))
-                    .thenReturn(List.of(buildUserSeries(1L, SeriesStatus.WATCHING)));
+            List<UserSeries> content = List.of(buildUserSeries(1L, SeriesStatus.WATCHING));
+            when(searchSeriesUseCase.listByStatus(1L, SeriesStatus.WATCHING, PageRequest.of(0, 20)))
+                    .thenReturn(new PageResult<>(content, 0, 20, 1, 1));
 
             mockMvc.perform(get("/api/v1/series")
                             .param("status", "WATCHING"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data[0].status").value("WATCHING"));
+                    .andExpect(jsonPath("$.data.content[0].status").value("WATCHING"));
         }
 
         @Test

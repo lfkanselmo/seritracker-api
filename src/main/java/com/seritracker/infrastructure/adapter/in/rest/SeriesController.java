@@ -2,6 +2,8 @@ package com.seritracker.infrastructure.adapter.in.rest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
@@ -13,19 +15,22 @@ import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodes
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
+import com.seritracker.infrastructure.adapter.in.rest.dto.response.PageResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.SeriesResponse;
 import com.seritracker.infrastructure.security.UserPrincipal;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/series")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Series", description = "Gestión de series del usuario")
 public class SeriesController {
 
@@ -35,20 +40,21 @@ public class SeriesController {
     private final DeleteSeriesUseCase deleteSeriesUseCase;
     private final SearchSeriesUseCase searchSeriesUseCase;
 
-    @Operation(summary = "Listar todas las series del usuario")
+    @Operation(summary = "Listar las series del usuario (paginado)")
     @GetMapping
-    public ApiResponse<List<SeriesResponse>> listAll(
+    public ApiResponse<PageResponse<SeriesResponse>> listAll(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) SeriesStatus status) {
+            @RequestParam(required = false) SeriesStatus status,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
 
         Long userId = principal.getId();
-        List<UserSeries> result = (status != null)
-                ? searchSeriesUseCase.listByStatus(userId, status)
-                : searchSeriesUseCase.listAllByUser(userId);
+        PageRequest pageRequest = PageRequest.of(page, size);
+        PageResult<UserSeries> result = (status != null)
+                ? searchSeriesUseCase.listByStatus(userId, status, pageRequest)
+                : searchSeriesUseCase.listAllByUser(userId, pageRequest);
 
-        return ApiResponse.ok(result.stream()
-                .map(SeriesResponse::from)
-                .toList());
+        return ApiResponse.ok(PageResponse.from(result, SeriesResponse::from));
     }
 
     @Operation(summary = "Obtener detalle de una serie")

@@ -2,6 +2,8 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.exception.DuplicateSeriesException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.Series;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
@@ -16,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -87,15 +88,15 @@ public class SeriesService implements
     }
 
     @Override
-    public List<UserSeries> listAllByUser(Long userId) {
-        log.debug("Listing all series for userId={}", userId);
-        return userSeriesRepository.findAllByUserId(userId);
+    public PageResult<UserSeries> listAllByUser(Long userId, PageRequest pageRequest) {
+        log.debug("Listing series for userId={} page={} size={}", userId, pageRequest.getPage(), pageRequest.getSize());
+        return userSeriesRepository.findAllByUserId(userId, pageRequest);
     }
 
     @Override
-    public List<UserSeries> listByStatus(Long userId, SeriesStatus status) {
-        log.debug("Listing series for userId={} with status={}", userId, status);
-        return userSeriesRepository.findByUserIdAndStatus(userId, status);
+    public PageResult<UserSeries> listByStatus(Long userId, SeriesStatus status, PageRequest pageRequest) {
+        log.debug("Listing series for userId={} status={} page={} size={}", userId, status, pageRequest.getPage(), pageRequest.getSize());
+        return userSeriesRepository.findByUserIdAndStatus(userId, status, pageRequest);
     }
 
     @Override

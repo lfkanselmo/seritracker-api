@@ -2,6 +2,8 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.exception.DuplicateSeriesException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.Series;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
@@ -281,33 +283,37 @@ class SeriesServiceTest {
         void shouldReturnAllSeries_whenUserHasSeries() {
             // Arrange
             Long userId = 1L;
-            List<UserSeries> expected = List.of(
+            PageRequest pageRequest = PageRequest.of(0, 20);
+            List<UserSeries> content = List.of(
                     buildUserSeries(1L, SeriesStatus.WATCHING),
                     buildUserSeries(2L, SeriesStatus.COMPLETED)
             );
-            when(userSeriesRepository.findAllByUserId(userId)).thenReturn(expected);
+            PageResult<UserSeries> expected = new PageResult<>(content, 0, 20, 2, 1);
+            when(userSeriesRepository.findAllByUserId(userId, pageRequest)).thenReturn(expected);
 
             // Act
-            List<UserSeries> result = seriesService.listAllByUser(userId);
+            PageResult<UserSeries> result = seriesService.listAllByUser(userId, pageRequest);
 
             // Assert
-            assertThat(result).hasSize(2);
-            assertThat(result).extracting(UserSeries::getStatus)
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent()).extracting(UserSeries::getStatus)
                     .containsExactly(SeriesStatus.WATCHING, SeriesStatus.COMPLETED);
         }
 
         @Test
-        @DisplayName("should return empty list when user has no series")
+        @DisplayName("should return empty page when user has no series")
         void shouldReturnEmptyList_whenUserHasNoSeries() {
             // Arrange
             Long userId = 1L;
-            when(userSeriesRepository.findAllByUserId(userId)).thenReturn(List.of());
+            PageRequest pageRequest = PageRequest.of(0, 20);
+            PageResult<UserSeries> expected = new PageResult<>(List.of(), 0, 20, 0, 0);
+            when(userSeriesRepository.findAllByUserId(userId, pageRequest)).thenReturn(expected);
 
             // Act
-            List<UserSeries> result = seriesService.listAllByUser(userId);
+            PageResult<UserSeries> result = seriesService.listAllByUser(userId, pageRequest);
 
             // Assert
-            assertThat(result).isEmpty();
+            assertThat(result.getContent()).isEmpty();
         }
     }
 

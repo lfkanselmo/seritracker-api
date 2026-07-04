@@ -1,5 +1,6 @@
 package com.seritracker.infrastructure.adapter.out.persistence;
 
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.infrastructure.adapter.out.persistence.entity.UserSeriesEntity;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -98,17 +100,21 @@ class UserSeriesRepositoryAdapterTest {
     }
 
     @Test
-    @DisplayName("findAllByUserId should return mapped list")
-    void findAllByUserId_shouldReturnMappedList() {
+    @DisplayName("findAllByUserId should return mapped page")
+    void findAllByUserId_shouldReturnMappedPage() {
         UserSeriesEntity entity = buildEntity(1L);
         UserSeries domain = buildDomain(1L);
+        org.springframework.data.domain.PageRequest springPageable =
+                org.springframework.data.domain.PageRequest.of(0, 20);
 
-        when(jpaRepository.findAllByUserId(1L)).thenReturn(List.of(entity));
+        when(jpaRepository.findAllByUserId(1L, springPageable))
+                .thenReturn(new PageImpl<>(List.of(entity), springPageable, 1));
         when(mapper.toDomain(entity)).thenReturn(domain);
 
-        List<UserSeries> result = adapter.findAllByUserId(1L);
+        PageResult<UserSeries> result = adapter.findAllByUserId(1L, com.seritracker.domain.model.PageRequest.of(0, 20));
 
-        assertThat(result).hasSize(1);
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
     @Test

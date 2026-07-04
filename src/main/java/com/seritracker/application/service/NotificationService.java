@@ -2,13 +2,13 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.exception.NotificationNotFoundException;
 import com.seritracker.domain.model.Notification;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.port.in.NotificationUseCase;
 import com.seritracker.domain.port.out.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -18,9 +18,9 @@ public class NotificationService implements NotificationUseCase {
     private final NotificationRepository notificationRepository;
 
     @Override
-    public List<Notification> getUnreadNotifications(Long userId) {
-        log.debug("Fetching unread notifications for userId={}", userId);
-        return notificationRepository.findUnreadByUserId(userId);
+    public PageResult<Notification> getUnreadNotifications(Long userId, PageRequest pageRequest) {
+        log.debug("Fetching unread notifications for userId={} page={} size={}", userId, pageRequest.getPage(), pageRequest.getSize());
+        return notificationRepository.findUnreadByUserId(userId, pageRequest);
     }
 
     @Override

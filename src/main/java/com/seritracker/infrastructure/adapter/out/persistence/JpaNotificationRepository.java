@@ -1,6 +1,8 @@
 package com.seritracker.infrastructure.adapter.out.persistence;
 
 import com.seritracker.infrastructure.adapter.out.persistence.entity.NotificationEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,7 +12,7 @@ import java.util.List;
 
 public interface JpaNotificationRepository extends JpaRepository<NotificationEntity, Long> {
 
-    List<NotificationEntity> findByUserIdAndReadFalseOrderBySentAtDesc(Long userId);
+    Page<NotificationEntity> findByUserIdAndReadFalseOrderBySentAtDesc(Long userId, Pageable pageable);
 
     boolean existsByUserIdAndTmdbIdAndEpisodeCode(Long userId, Integer tmdbId, String episodeCode);
 

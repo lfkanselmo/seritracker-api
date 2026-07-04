@@ -1,9 +1,13 @@
 package com.seritracker.infrastructure.adapter.out.persistence;
 
 import com.seritracker.domain.model.Notification;
+import com.seritracker.domain.model.PageRequest;
+import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.port.out.NotificationRepository;
+import com.seritracker.infrastructure.adapter.out.persistence.entity.NotificationEntity;
 import com.seritracker.infrastructure.adapter.out.persistence.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -30,12 +34,19 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
     }
 
     @Override
-    public List<Notification> findUnreadByUserId(Long userId) {
-        return jpaRepository
-                .findByUserIdAndReadFalseOrderBySentAtDesc(userId)
-                .stream()
-                .map(mapper::toDomain)
-                .toList();
+    public PageResult<Notification> findUnreadByUserId(Long userId, PageRequest pageRequest) {
+        Page<NotificationEntity> page = jpaRepository.findByUserIdAndReadFalseOrderBySentAtDesc(
+                userId,
+                org.springframework.data.domain.PageRequest.of(pageRequest.getPage(), pageRequest.getSize())
+        );
+
+        return new PageResult<>(
+                page.getContent().stream().map(mapper::toDomain).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages()
+        );
     }
 
     @Override
