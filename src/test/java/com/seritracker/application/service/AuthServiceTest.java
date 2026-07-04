@@ -69,7 +69,7 @@ class AuthServiceTest {
             when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
             when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
             when(userRepository.save(any())).thenReturn(saved);
-            when(jwtService.generateToken(saved.getEmail())).thenReturn("jwt_token");
+            when(jwtService.generateToken(saved.getId(), saved.getEmail(), saved.getRole())).thenReturn("jwt_token");
 
             // Act
             AuthResponse result = authService.register(request);
@@ -107,7 +107,7 @@ class AuthServiceTest {
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
             when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
             when(userRepository.save(any())).thenReturn(saved);
-            when(jwtService.generateToken(anyString())).thenReturn("jwt_token");
+            when(jwtService.generateToken(any(), anyString(), anyString())).thenReturn("jwt_token");
 
             // Act
             authService.register(request);
@@ -132,7 +132,7 @@ class AuthServiceTest {
 
             when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
             when(passwordEncoder.matches(request.getPassword(), user.getPasswordHash())).thenReturn(true);
-            when(jwtService.generateToken(user.getEmail())).thenReturn("jwt_token");
+            when(jwtService.generateToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("jwt_token");
 
             // Act
             AuthResponse result = authService.login(request);
@@ -171,7 +171,7 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.login(request))
                     .isInstanceOf(BadCredentialsException.class);
 
-            verify(jwtService, never()).generateToken(anyString());
+            verify(jwtService, never()).generateToken(any(), anyString(), anyString());
         }
     }
 }

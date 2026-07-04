@@ -11,11 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-
-import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -25,7 +20,6 @@ import static org.mockito.Mockito.*;
 class JwtAuthFilterTest {
 
     @Mock private JwtService          jwtService;
-    @Mock private UserDetailsService  userDetailsService;
     @Mock private HttpServletRequest  request;
     @Mock private HttpServletResponse response;
     @Mock private FilterChain         filterChain;
@@ -68,30 +62,32 @@ class JwtAuthFilterTest {
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
-        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(jwtService, never()).extractUserId(any());
     }
 
     @Test
-    @DisplayName("should set authentication when token is valid")
+    @DisplayName("should set authentication from token claims when token is valid")
     void shouldSetAuthentication_whenTokenIsValid() throws Exception {
         String token = "valid.jwt.token";
         String email = "user@test.com";
-        UserDetails userDetails = User.builder()
-                .username(email)
-                .password("password")
-                .authorities(Collections.emptyList())
-                .build();
 
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.extractUserId(token)).thenReturn(1L);
         when(jwtService.extractEmail(token)).thenReturn(email);
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+        when(jwtService.extractRole(token)).thenReturn("USER");
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
-        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
-        assertThat(SecurityContextHolder.getContext().getAuthentication().getName())
-                .isEqualTo(email);
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.getName()).isEqualTo(email);
+
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        assertThat(principal.getId()).isEqualTo(1L);
+        assertThat(principal.getAuthorities())
+                .extracting(Object::toString)
+                .containsExactly("ROLE_USER");
     }
 }

@@ -13,15 +13,20 @@ import java.util.HexFormat;
 @Service
 public class JwtService {
 
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_ROLE = "role";
+
     @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration}")
     private long expiration;
 
-    public String generateToken(String email) {
+    public String generateToken(Long userId, String email, String role) {
         return Jwts.builder()
                 .subject(email)
+                .claim(CLAIM_USER_ID, userId)
+                .claim(CLAIM_ROLE, role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
@@ -30,6 +35,15 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return extractClaims(token).getSubject();
+    }
+
+    public Long extractUserId(String token) {
+        Number userId = extractClaims(token).get(CLAIM_USER_ID, Number.class);
+        return userId != null ? userId.longValue() : null;
+    }
+
+    public String extractRole(String token) {
+        return extractClaims(token).get(CLAIM_ROLE, String.class);
     }
 
     public boolean isTokenValid(String token) {

@@ -39,7 +39,7 @@ public class AuthService {
         User saved = userRepository.save(user);
         log.info("User id={} registered successfully", saved.getId());
 
-        String token = jwtService.generateToken(saved.getEmail());
+        String token = jwtService.generateToken(saved.getId(), saved.getEmail(), saved.getRole());
         return AuthResponse.builder()
                 .token(token)
                 .email(saved.getEmail())
@@ -63,7 +63,7 @@ public class AuthService {
         }
 
         log.info("User id={} logged in successfully", user.getId());
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
 
         return AuthResponse.builder()
                 .token(token)
