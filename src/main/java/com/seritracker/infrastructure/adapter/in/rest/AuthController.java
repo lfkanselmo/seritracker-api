@@ -2,8 +2,10 @@ package com.seritracker.infrastructure.adapter.in.rest;
 
 import com.seritracker.application.service.AuthService;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
 import com.seritracker.infrastructure.security.UserPrincipal;
@@ -43,5 +45,19 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(principal.getId(), request);
         return ApiResponse.noContent("Password changed");
+    }
+
+    @Operation(summary = "Solicitar recuperación de contraseña por email")
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ApiResponse.noContent("If the email exists, a reset link has been sent");
+    }
+
+    @Operation(summary = "Restablecer contraseña con el token recibido por email")
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.noContent("Password reset successfully");
     }
 }

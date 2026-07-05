@@ -21,4 +21,11 @@ public class RateLimitConfig {
             @Value("${register.rate-limit.window-minutes}") long windowMinutes) {
         return new RateLimiter(maxAttempts, windowMinutes);
     }
+
+    @Bean
+    public RateLimiter forgotPasswordRateLimiter(
+            @Value("${forgot-password.rate-limit.max-attempts}") int maxAttempts,
+            @Value("${forgot-password.rate-limit.window-minutes}") long windowMinutes) {
+        return new RateLimiter(maxAttempts, windowMinutes);
+    }
 }

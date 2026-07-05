@@ -1,12 +1,19 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.exception.InvalidResetTokenException;
+import com.seritracker.domain.model.PasswordResetToken;
 import com.seritracker.domain.model.User;
+import com.seritracker.domain.port.out.EmailSender;
+import com.seritracker.domain.port.out.PasswordResetTokenRepository;
 import com.seritracker.domain.port.out.UserRepository;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
 import com.seritracker.infrastructure.security.JwtService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,12 +23,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,8 +41,16 @@ class AuthServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private JwtService jwtService;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private EmailSender emailSender;
 
     @InjectMocks private AuthService authService;
+
+    @BeforeEach
+    void setUpConfig() {
+        ReflectionTestUtils.setField(authService, "appBaseUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(authService, "resetExpirationMinutes", 60L);
+    }
 
     // ── Factories ──────────────────────────────────────────────────────
 
@@ -229,6 +247,104 @@ class AuthServiceTest {
                     .isInstanceOf(BadCredentialsException.class);
 
             verify(passwordEncoder, never()).matches(anyString(), anyString());
+        }
+    }
+
+    // ── forgotPassword ─────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("forgotPassword")
+    class ForgotPassword {
+
+        @Test
+        @DisplayName("should create a reset token and send an email when the user exists")
+        void shouldCreateTokenAndSendEmail_whenUserExists() {
+            // Arrange
+            User user = buildUser();
+            when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+            // Act
+            authService.forgotPassword(new ForgotPasswordRequest(user.getEmail()));
+
+            // Assert
+            verify(passwordResetTokenRepository).deleteByUserId(user.getId());
+            verify(passwordResetTokenRepository).save(argThat(token ->
+                    token.getUserId().equals(user.getId()) && token.getTokenHash() != null));
+            verify(emailSender).send(eq(user.getEmail()), anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("should do nothing when the email does not belong to any user")
+        void shouldDoNothing_whenEmailIsUnknown() {
+            // Arrange
+            when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+
+            // Act
+            authService.forgotPassword(new ForgotPasswordRequest("unknown@test.com"));
+
+            // Assert — silencioso, sin filtrar si el email existe
+            verify(passwordResetTokenRepository, never()).save(any());
+            verify(emailSender, never()).send(any(), any(), any());
+        }
+    }
+
+    // ── resetPassword ──────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("resetPassword")
+    class ResetPassword {
+
+        private PasswordResetToken buildToken(LocalDateTime expiresAt) {
+            return PasswordResetToken.builder()
+                    .id(10L)
+                    .userId(1L)
+                    .tokenHash("irrelevant_in_test_since_hash_is_computed_from_raw_token")
+                    .expiresAt(expiresAt)
+                    .createdAt(LocalDateTime.now().minusMinutes(5))
+                    .build();
+        }
+
+        @Test
+        @DisplayName("should update the password and delete the token when it is valid")
+        void shouldUpdatePasswordAndDeleteToken_whenTokenIsValid() {
+            // Arrange
+            PasswordResetToken token = buildToken(LocalDateTime.now().plusMinutes(30));
+            User user = buildUser();
+
+            when(passwordResetTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            when(passwordEncoder.encode("newPassword456")).thenReturn("new_hashed_password");
+
+            // Act
+            authService.resetPassword(new ResetPasswordRequest("raw-token", "newPassword456"));
+
+            // Assert
+            verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
+            verify(passwordResetTokenRepository).deleteById(10L);
+        }
+
+        @Test
+        @DisplayName("should throw InvalidResetTokenException when the token does not exist")
+        void shouldThrowInvalidResetTokenException_whenTokenDoesNotExist() {
+            when(passwordResetTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.resetPassword(new ResetPasswordRequest("bad-token", "newPassword456")))
+                    .isInstanceOf(InvalidResetTokenException.class);
+
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw InvalidResetTokenException and delete the token when it is expired")
+        void shouldThrowInvalidResetTokenException_whenTokenIsExpired() {
+            PasswordResetToken token = buildToken(LocalDateTime.now().minusMinutes(1));
+            when(passwordResetTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+
+            assertThatThrownBy(() -> authService.resetPassword(new ResetPasswordRequest("expired-token", "newPassword456")))
+                    .isInstanceOf(InvalidResetTokenException.class);
+
+            verify(passwordResetTokenRepository).deleteById(10L);
+            verify(userRepository, never()).save(any());
         }
     }
 }

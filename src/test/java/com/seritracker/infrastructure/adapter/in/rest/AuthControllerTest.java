@@ -2,9 +2,12 @@ package com.seritracker.infrastructure.adapter.in.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seritracker.application.service.AuthService;
+import com.seritracker.domain.exception.InvalidResetTokenException;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
 import com.seritracker.infrastructure.config.GlobalExceptionHandler;
 import com.seritracker.infrastructure.security.UserPrincipal;
@@ -217,6 +220,86 @@ class AuthControllerTest {
             mockMvc.perform(patch("/api/v1/auth/password")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"currentPassword\":\"current123\",\"newPassword\":\"123\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── POST /api/v1/auth/forgot-password ──────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/forgot-password")
+    class ForgotPassword {
+
+        @Test
+        @DisplayName("should return 200 when the email exists")
+        void shouldReturn200_whenEmailExists() throws Exception {
+            ForgotPasswordRequest request = new ForgotPasswordRequest("user@test.com");
+
+            mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("should return 200 even when the email does not exist (no enumeration)")
+        void shouldReturn200_whenEmailDoesNotExist() throws Exception {
+            ForgotPasswordRequest request = new ForgotPasswordRequest("unknown@test.com");
+
+            mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("should return 400 when the email is invalid")
+        void shouldReturn400_whenEmailIsInvalid() throws Exception {
+            mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\":\"not-an-email\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── POST /api/v1/auth/reset-password ───────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/reset-password")
+    class ResetPassword {
+
+        @Test
+        @DisplayName("should return 200 when the token is valid")
+        void shouldReturn200_whenTokenIsValid() throws Exception {
+            ResetPasswordRequest request = new ResetPasswordRequest("valid-token", "newPassword456");
+
+            mockMvc.perform(post("/api/v1/auth/reset-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("should return 400 when the token is invalid or expired")
+        void shouldReturn400_whenTokenIsInvalid() throws Exception {
+            ResetPasswordRequest request = new ResetPasswordRequest("bad-token", "newPassword456");
+            doThrow(new InvalidResetTokenException()).when(authService).resetPassword(any());
+
+            mockMvc.perform(post("/api/v1/auth/reset-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("Invalid or expired reset token"));
+        }
+
+        @Test
+        @DisplayName("should return 400 when the new password is too short")
+        void shouldReturn400_whenNewPasswordIsTooShort() throws Exception {
+            mockMvc.perform(post("/api/v1/auth/reset-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"token\":\"some-token\",\"newPassword\":\"123\"}"))
                     .andExpect(status().isBadRequest());
         }
     }

@@ -1,6 +1,7 @@
 package com.seritracker.infrastructure.config;
 
 import com.seritracker.domain.exception.DuplicateSeriesException;
+import com.seritracker.domain.exception.InvalidResetTokenException;
 import com.seritracker.domain.exception.NotificationNotFoundException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
@@ -39,6 +40,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateSeriesException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiResponse<Void> handleDuplicate(DuplicateSeriesException ex) {
+        return buildError(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidResetTokenException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleInvalidResetToken(InvalidResetTokenException ex) {
         return buildError(ex.getMessage());
     }
 

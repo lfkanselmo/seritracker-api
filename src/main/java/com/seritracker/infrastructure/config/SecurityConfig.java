@@ -1,5 +1,6 @@
 package com.seritracker.infrastructure.config;
 
+import com.seritracker.infrastructure.security.ForgotPasswordRateLimitFilter;
 import com.seritracker.infrastructure.security.JwtAuthFilter;
 import com.seritracker.infrastructure.security.LoginRateLimitFilter;
 import com.seritracker.infrastructure.security.RegisterRateLimitFilter;
@@ -29,6 +30,7 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final LoginRateLimitFilter loginRateLimitFilter;
     private final RegisterRateLimitFilter registerRateLimitFilter;
+    private final ForgotPasswordRateLimitFilter forgotPasswordRateLimitFilter;
 
     @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
@@ -51,13 +53,16 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/reset-password",
                                 "/api/v1/tmdb/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(registerRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(registerRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(forgotPasswordRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
