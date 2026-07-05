@@ -1,9 +1,12 @@
 package com.seritracker.infrastructure.adapter.out.tmdb;
 
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.Episode;
+import com.seritracker.domain.model.SeasonSummary;
 import com.seritracker.domain.model.Series;
 import com.seritracker.domain.port.out.TmdbClient;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSearchResponse;
+import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSeasonResponse;
 import com.seritracker.infrastructure.adapter.out.tmdb.dto.TmdbSeriesResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -91,6 +95,17 @@ public class TmdbClientAdapter implements TmdbClient {
                         .toList())
                 .orElse(Collections.emptyList());
 
+        List<SeasonSummary> seasons = Optional.ofNullable(response.getSeasons())
+                .map(s -> s.stream()
+                        .filter(season -> season.getSeasonNumber() != null && season.getSeasonNumber() >= 1)
+                        .map(season -> SeasonSummary.builder()
+                                .seasonNumber(season.getSeasonNumber())
+                                .name(season.getName())
+                                .episodeCount(Optional.ofNullable(season.getEpisodeCount()).orElse(0))
+                                .build())
+                        .toList())
+                .orElse(Collections.emptyList());
+
         return Series.builder()
                 .tmdbId(response.getId())
                 .title(response.getName())
@@ -100,7 +115,45 @@ public class TmdbClientAdapter implements TmdbClient {
                 .totalEpisodes(Optional.ofNullable(response.getNumberOfEpisodes()).orElse(0))
                 .network(network)
                 .genres(genres)
+                .seasons(seasons)
                 .build();
+    }
+
+    @Override
+    public List<Episode> getSeasonEpisodes(Integer tmdbId, Integer seasonNumber) {
+        log.info("Fetching TMDB season {} episodes for tmdbId={}", seasonNumber, tmdbId);
+        TmdbSeasonResponse response;
+        try {
+            response = buildClient()
+                    .get()
+                    .uri("/tv/{id}/season/{season}?language=es-ES", tmdbId, seasonNumber)
+                    .retrieve()
+                    .body(TmdbSeasonResponse.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new SeriesNotFoundException(tmdbId);
+        }
+
+        if (response == null || response.getEpisodes() == null) {
+            return Collections.emptyList();
+        }
+
+        return response.getEpisodes().stream()
+                .map(e -> Episode.builder()
+                        .seasonNumber(seasonNumber)
+                        .episodeNumber(e.getEpisodeNumber())
+                        .title(e.getName())
+                        .airDate(parseAirDate(e.getAirDate()))
+                        .build())
+                .toList();
+    }
+
+    private LocalDate parseAirDate(String airDate) {
+        if (airDate == null || airDate.isBlank()) return null;
+        try {
+            return LocalDate.parse(airDate);
+        } catch (java.time.format.DateTimeParseException e) {
+            return null;
+        }
     }
 
     private RestClient buildClient() {

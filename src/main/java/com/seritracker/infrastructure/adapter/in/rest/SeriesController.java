@@ -8,17 +8,23 @@ import com.seritracker.domain.model.SeriesSortBy;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.SortDirection;
 import com.seritracker.domain.model.UserSeries;
+import com.seritracker.domain.model.EpisodeInfo;
+import com.seritracker.domain.model.SeriesEpisodesSummary;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
 import com.seritracker.domain.port.in.DeleteSeriesUseCase;
+import com.seritracker.domain.port.in.EpisodeTrackingUseCase;
 import com.seritracker.domain.port.in.SearchSeriesUseCase;
 import com.seritracker.domain.port.in.UpdateSeriesUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.CreateSeriesRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodesRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.MarkEpisodeRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.MarkSeasonRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateNotesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.PageResponse;
+import com.seritracker.infrastructure.adapter.in.rest.dto.response.SeasonEpisodesResponse;
+import com.seritracker.infrastructure.adapter.in.rest.dto.response.SeasonsSummaryResponse;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.SeriesResponse;
 import com.seritracker.infrastructure.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -29,6 +35,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/series")
@@ -42,6 +50,7 @@ public class SeriesController {
     private final UpdateSeriesUseCase updateSeriesUseCase;
     private final DeleteSeriesUseCase deleteSeriesUseCase;
     private final SearchSeriesUseCase searchSeriesUseCase;
+    private final EpisodeTrackingUseCase episodeTrackingUseCase;
 
     @Operation(summary = "Listar las series del usuario (paginado, con búsqueda y orden opcionales)")
     @GetMapping
@@ -117,15 +126,51 @@ public class SeriesController {
         ));
     }
 
-    @Operation(summary = "Actualizar episodios vistos")
-    @PatchMapping("/{id}/episodes")
-    public ApiResponse<SeriesResponse> updateEpisodes(
+    @Operation(summary = "Obtener resumen de temporadas y próximo episodio a ver")
+    @GetMapping("/{id}/seasons")
+    public ApiResponse<SeasonsSummaryResponse> getSeasonsSummary(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+
+        SeriesEpisodesSummary summary = episodeTrackingUseCase.getSeasonsSummary(principal.getId(), id);
+        return ApiResponse.ok(SeasonsSummaryResponse.from(summary));
+    }
+
+    @Operation(summary = "Obtener episodios de una temporada con su estado de visto")
+    @GetMapping("/{id}/seasons/{seasonNumber}/episodes")
+    public ApiResponse<SeasonEpisodesResponse> getSeasonEpisodes(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @Valid @RequestBody UpdateEpisodesRequest request) {
+            @PathVariable Integer seasonNumber) {
+
+        List<EpisodeInfo> episodes = episodeTrackingUseCase.getSeasonEpisodes(principal.getId(), id, seasonNumber);
+        return ApiResponse.ok(SeasonEpisodesResponse.from(episodes));
+    }
+
+    @Operation(summary = "Marcar un episodio como visto/no visto")
+    @PatchMapping("/{id}/seasons/{seasonNumber}/episodes/{episodeNumber}")
+    public ApiResponse<SeriesResponse> markEpisode(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PathVariable Integer seasonNumber,
+            @PathVariable Integer episodeNumber,
+            @Valid @RequestBody MarkEpisodeRequest request) {
 
         return ApiResponse.ok(SeriesResponse.from(
-                updateSeriesUseCase.updateWatchedEpisodes(principal.getId(), id, request.getWatchedEpisodes())
+                episodeTrackingUseCase.markEpisode(principal.getId(), id, seasonNumber, episodeNumber, request.getWatched())
+        ));
+    }
+
+    @Operation(summary = "Marcar una temporada completa como vista")
+    @PatchMapping("/{id}/seasons/{seasonNumber}/watch-all")
+    public ApiResponse<SeriesResponse> markSeasonWatched(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PathVariable Integer seasonNumber,
+            @Valid @RequestBody MarkSeasonRequest request) {
+
+        return ApiResponse.ok(SeriesResponse.from(
+                episodeTrackingUseCase.markEpisodesWatched(principal.getId(), id, seasonNumber, request.getEpisodeNumbers())
         ));
     }
 

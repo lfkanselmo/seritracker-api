@@ -1,6 +1,7 @@
 package com.seritracker.infrastructure.adapter.out.tmdb;
 
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.Episode;
 import com.seritracker.domain.model.Series;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -163,6 +164,67 @@ class TmdbClientAdapterTest {
                 .addHeader("Content-Type", "application/json"));
 
         assertThatThrownBy(() -> adapter.getSeriesDetails(1396))
+                .isInstanceOf(SeriesNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should map seasons and filter out specials (season 0)")
+    void getSeriesDetails_shouldMapSeasons_andFilterOutSpecials() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "number_of_seasons": 5,
+                      "networks": [],
+                      "genres": [],
+                      "seasons": [
+                        {"season_number": 0, "name": "Specials", "episode_count": 3},
+                        {"season_number": 1, "name": "Season 1", "episode_count": 7}
+                      ]
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getSeasons()).hasSize(1);
+        assertThat(result.getSeasons().get(0).getSeasonNumber()).isEqualTo(1);
+        assertThat(result.getSeasons().get(0).getEpisodeCount()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("getSeasonEpisodes should return mapped episodes")
+    void getSeasonEpisodes_shouldReturnMappedEpisodes() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "season_number": 1,
+                      "name": "Season 1",
+                      "episodes": [
+                        {"episode_number": 1, "name": "Pilot", "air_date": "2008-01-20"},
+                        {"episode_number": 2, "name": "Cat's in the Bag...", "air_date": null}
+                      ]
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        List<Episode> episodes = adapter.getSeasonEpisodes(1396, 1);
+
+        assertThat(episodes).hasSize(2);
+        assertThat(episodes.get(0).getSeasonNumber()).isEqualTo(1);
+        assertThat(episodes.get(0).getTitle()).isEqualTo("Pilot");
+        assertThat(episodes.get(0).getAirDate()).isEqualTo(java.time.LocalDate.of(2008, 1, 20));
+        assertThat(episodes.get(1).getAirDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("getSeasonEpisodes should throw SeriesNotFoundException when TMDB returns 404")
+    void getSeasonEpisodes_shouldThrowSeriesNotFoundException_whenTmdbReturns404() {
+        mockWebServer.enqueue(new MockResponse().setResponseCode(404));
+
+        assertThatThrownBy(() -> adapter.getSeasonEpisodes(999999, 1))
                 .isInstanceOf(SeriesNotFoundException.class);
     }
 }

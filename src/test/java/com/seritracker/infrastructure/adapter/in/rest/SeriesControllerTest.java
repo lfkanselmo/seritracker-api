@@ -3,17 +3,23 @@ package com.seritracker.infrastructure.adapter.in.rest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seritracker.domain.exception.DuplicateSeriesException;
 import com.seritracker.domain.exception.SeriesNotFoundException;
+import com.seritracker.domain.model.EpisodeInfo;
+import com.seritracker.domain.model.NextEpisode;
 import com.seritracker.domain.model.PageRequest;
 import com.seritracker.domain.model.PageResult;
+import com.seritracker.domain.model.SeasonProgress;
+import com.seritracker.domain.model.SeriesEpisodesSummary;
 import com.seritracker.domain.model.SeriesStatus;
 import com.seritracker.domain.model.SortDirection;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
 import com.seritracker.domain.port.in.DeleteSeriesUseCase;
+import com.seritracker.domain.port.in.EpisodeTrackingUseCase;
 import com.seritracker.domain.port.in.SearchSeriesUseCase;
 import com.seritracker.domain.port.in.UpdateSeriesUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.CreateSeriesRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodesRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.MarkEpisodeRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.MarkSeasonRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateNotesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
@@ -51,6 +57,7 @@ class SeriesControllerTest {
     @Mock private UpdateSeriesUseCase updateSeriesUseCase;
     @Mock private DeleteSeriesUseCase deleteSeriesUseCase;
     @Mock private SearchSeriesUseCase searchSeriesUseCase;
+    @Mock private EpisodeTrackingUseCase episodeTrackingUseCase;
 
     @InjectMocks private SeriesController seriesController;
 
@@ -307,23 +314,108 @@ class SeriesControllerTest {
         }
     }
 
-    // ── PATCH /api/v1/series/{id}/episodes ────────────────────────────
+    // ── GET /api/v1/series/{id}/seasons ───────────────────────────────
 
     @Nested
-    @DisplayName("PATCH /api/v1/series/{id}/episodes")
-    class UpdateEpisodes {
+    @DisplayName("GET /api/v1/series/{id}/seasons")
+    class GetSeasonsSummary {
 
         @Test
-        @DisplayName("should return 200 when episodes updated")
-        void shouldReturn200_whenEpisodesUpdated() throws Exception {
-            UpdateEpisodesRequest request = new UpdateEpisodesRequest(10);
-            when(updateSeriesUseCase.updateWatchedEpisodes(1L, 1L, 10))
+        @DisplayName("should return 200 with seasons and next episode")
+        void shouldReturn200_withSeasonsAndNextEpisode() throws Exception {
+            SeriesEpisodesSummary summary = SeriesEpisodesSummary.builder()
+                    .seasons(List.of(SeasonProgress.builder()
+                            .seasonNumber(1).name("Season 1").episodeCount(7).watchedCount(3)
+                            .build()))
+                    .nextEpisode(NextEpisode.builder()
+                            .seasonNumber(1).episodeNumber(4).title("Cancer Man").airDate(null)
+                            .build())
+                    .build();
+            when(episodeTrackingUseCase.getSeasonsSummary(1L, 1L)).thenReturn(summary);
+
+            mockMvc.perform(get("/api/v1/series/1/seasons"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.seasons[0].watchedCount").value(3))
+                    .andExpect(jsonPath("$.data.nextEpisode.title").value("Cancer Man"));
+        }
+    }
+
+    // ── GET /api/v1/series/{id}/seasons/{seasonNumber}/episodes ───────
+
+    @Nested
+    @DisplayName("GET /api/v1/series/{id}/seasons/{seasonNumber}/episodes")
+    class GetSeasonEpisodes {
+
+        @Test
+        @DisplayName("should return 200 with episode list")
+        void shouldReturn200_withEpisodeList() throws Exception {
+            List<EpisodeInfo> episodes = List.of(EpisodeInfo.builder()
+                    .seasonNumber(1).episodeNumber(1).title("Pilot").airDate(null).watched(true)
+                    .build());
+            when(episodeTrackingUseCase.getSeasonEpisodes(1L, 1L, 1)).thenReturn(episodes);
+
+            mockMvc.perform(get("/api/v1/series/1/seasons/1/episodes"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.episodes[0].title").value("Pilot"))
+                    .andExpect(jsonPath("$.data.episodes[0].watched").value(true));
+        }
+    }
+
+    // ── PATCH /api/v1/series/{id}/seasons/{seasonNumber}/episodes/{episodeNumber} ──
+
+    @Nested
+    @DisplayName("PATCH /api/v1/series/{id}/seasons/{seasonNumber}/episodes/{episodeNumber}")
+    class MarkEpisode {
+
+        @Test
+        @DisplayName("should return 200 when episode marked as watched")
+        void shouldReturn200_whenEpisodeMarkedAsWatched() throws Exception {
+            MarkEpisodeRequest request = new MarkEpisodeRequest(true);
+            when(episodeTrackingUseCase.markEpisode(1L, 1L, 1, 1, true))
                     .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
 
-            mockMvc.perform(patch("/api/v1/series/1/episodes")
+            mockMvc.perform(patch("/api/v1/series/1/seasons/1/episodes/1")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("should return 400 when watched is missing")
+        void shouldReturn400_whenWatchedIsMissing() throws Exception {
+            mockMvc.perform(patch("/api/v1/series/1/seasons/1/episodes/1")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── PATCH /api/v1/series/{id}/seasons/{seasonNumber}/watch-all ────
+
+    @Nested
+    @DisplayName("PATCH /api/v1/series/{id}/seasons/{seasonNumber}/watch-all")
+    class MarkSeasonWatched {
+
+        @Test
+        @DisplayName("should return 200 when season marked as watched")
+        void shouldReturn200_whenSeasonMarkedAsWatched() throws Exception {
+            MarkSeasonRequest request = new MarkSeasonRequest(List.of(1, 2, 3));
+            when(episodeTrackingUseCase.markEpisodesWatched(1L, 1L, 1, List.of(1, 2, 3)))
+                    .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
+
+            mockMvc.perform(patch("/api/v1/series/1/seasons/1/watch-all")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("should return 400 when episodeNumbers is empty")
+        void shouldReturn400_whenEpisodeNumbersIsEmpty() throws Exception {
+            mockMvc.perform(patch("/api/v1/series/1/seasons/1/watch-all")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"episodeNumbers\": []}"))
+                    .andExpect(status().isBadRequest());
         }
     }
 

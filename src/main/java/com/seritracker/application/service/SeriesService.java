@@ -73,13 +73,6 @@ public class SeriesService implements
     }
 
     @Override
-    public UserSeries updateWatchedEpisodes(Long userId, Long id, Integer episodes) {
-        log.info("Updating watched episodes of series id={} to {}", id, episodes);
-        UserSeries existing = findOrThrow(userId, id);
-        return userSeriesRepository.save(existing.withWatchedEpisodes(episodes));
-    }
-
-    @Override
     public UserSeries updateNotes(Long userId, Long id, String notes) {
         log.info("Updating notes of series id={}", id);
         UserSeries existing = findOrThrow(userId, id);

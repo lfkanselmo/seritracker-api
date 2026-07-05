@@ -206,33 +206,6 @@ class SeriesServiceTest {
         }
     }
 
-    // ── updateWatchedEpisodes ──────────────────────────────────────────
-
-    @Nested
-    @DisplayName("updateWatchedEpisodes")
-    class UpdateWatchedEpisodes {
-
-        @Test
-        @DisplayName("should update watched episodes when series exists")
-        void shouldUpdateWatchedEpisodes_whenSeriesExists() {
-            // Arrange
-            Long userId = 1L;
-            Long id = 1L;
-            UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
-            UserSeries updated  = existing.withWatchedEpisodes(10);
-
-            when(userSeriesRepository.findById(id)).thenReturn(Optional.of(existing));
-            when(userSeriesRepository.save(any())).thenReturn(updated);
-
-            // Act
-            UserSeries result = seriesService.updateWatchedEpisodes(userId, id, 10);
-
-            // Assert
-            assertThat(result.getWatchedEpisodes()).isEqualTo(10);
-            verify(userSeriesRepository).save(any());
-        }
-    }
-
     // ── updateNotes ────────────────────────────────────────────────────
 
     @Nested
