@@ -13,6 +13,7 @@ import com.seritracker.domain.port.in.SearchSeriesUseCase;
 import com.seritracker.domain.port.in.UpdateSeriesUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.CreateSeriesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodesRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateNotesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.config.GlobalExceptionHandler;
@@ -286,6 +287,37 @@ class SeriesControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
+        }
+    }
+
+    // ── PATCH /api/v1/series/{id}/notes ───────────────────────────────
+
+    @Nested
+    @DisplayName("PATCH /api/v1/series/{id}/notes")
+    class UpdateNotes {
+
+        @Test
+        @DisplayName("should return 200 when notes updated")
+        void shouldReturn200_whenNotesUpdated() throws Exception {
+            UpdateNotesRequest request = new UpdateNotesRequest("Great show so far");
+            when(updateSeriesUseCase.updateNotes(1L, 1L, "Great show so far"))
+                    .thenReturn(buildUserSeries(1L, SeriesStatus.WATCHING));
+
+            mockMvc.perform(patch("/api/v1/series/1/notes")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("should return 400 when notes exceed the max length")
+        void shouldReturn400_whenNotesExceedMaxLength() throws Exception {
+            String tooLong = "a".repeat(2001);
+
+            mockMvc.perform(patch("/api/v1/series/1/notes")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new UpdateNotesRequest(tooLong))))
+                    .andExpect(status().isBadRequest());
         }
     }
 

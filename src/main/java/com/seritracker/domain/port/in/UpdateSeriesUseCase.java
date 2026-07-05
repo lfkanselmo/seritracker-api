@@ -7,4 +7,5 @@ public interface UpdateSeriesUseCase {
     UserSeries updateStatus(Long userId, Long id, SeriesStatus status);
     UserSeries updateRating(Long userId, Long id, Integer rating);
     UserSeries updateWatchedEpisodes(Long userId, Long id, Integer episodes);
+    UserSeries updateNotes(Long userId, Long id, String notes);
 }

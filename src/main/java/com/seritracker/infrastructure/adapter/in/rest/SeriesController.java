@@ -12,6 +12,7 @@ import com.seritracker.domain.port.in.SearchSeriesUseCase;
 import com.seritracker.domain.port.in.UpdateSeriesUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.CreateSeriesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateEpisodesRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateNotesRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateRatingRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.UpdateStatusRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
@@ -116,6 +117,18 @@ public class SeriesController {
 
         return ApiResponse.ok(SeriesResponse.from(
                 updateSeriesUseCase.updateWatchedEpisodes(principal.getId(), id, request.getWatchedEpisodes())
+        ));
+    }
+
+    @Operation(summary = "Actualizar notas de una serie")
+    @PatchMapping("/{id}/notes")
+    public ApiResponse<SeriesResponse> updateNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateNotesRequest request) {
+
+        return ApiResponse.ok(SeriesResponse.from(
+                updateSeriesUseCase.updateNotes(principal.getId(), id, request.getNotes())
         ));
     }
 

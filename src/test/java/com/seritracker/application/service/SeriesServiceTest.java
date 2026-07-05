@@ -233,6 +233,48 @@ class SeriesServiceTest {
         }
     }
 
+    // ── updateNotes ────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("updateNotes")
+    class UpdateNotes {
+
+        @Test
+        @DisplayName("should update notes when series exists")
+        void shouldUpdateNotes_whenSeriesExists() {
+            // Arrange
+            Long userId = 1L;
+            Long id = 1L;
+            UserSeries existing = buildUserSeries(id, SeriesStatus.WATCHING);
+            UserSeries updated  = existing.withNotes("Great show so far");
+
+            when(userSeriesRepository.findById(id)).thenReturn(Optional.of(existing));
+            when(userSeriesRepository.save(any())).thenReturn(updated);
+
+            // Act
+            UserSeries result = seriesService.updateNotes(userId, id, "Great show so far");
+
+            // Assert
+            assertThat(result.getNotes()).isEqualTo("Great show so far");
+            verify(userSeriesRepository).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw SeriesNotFoundException when series does not exist")
+        void shouldThrowSeriesNotFoundException_whenSeriesDoesNotExist() {
+            // Arrange
+            Long userId = 1L;
+            Long id = 99L;
+            when(userSeriesRepository.findById(id)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> seriesService.updateNotes(userId, id, "some notes"))
+                    .isInstanceOf(SeriesNotFoundException.class);
+
+            verify(userSeriesRepository, never()).save(any());
+        }
+    }
+
     // ── deleteSeries ───────────────────────────────────────────────────
 
     @Nested

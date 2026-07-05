@@ -80,6 +80,13 @@ public class SeriesService implements
     }
 
     @Override
+    public UserSeries updateNotes(Long userId, Long id, String notes) {
+        log.info("Updating notes of series id={}", id);
+        UserSeries existing = findOrThrow(userId, id);
+        return userSeriesRepository.save(existing.withNotes(notes));
+    }
+
+    @Override
     public void deleteSeries(Long userId, Long id) {
         log.info("Deleting series id={}", id);
         findOrThrow(userId, id);

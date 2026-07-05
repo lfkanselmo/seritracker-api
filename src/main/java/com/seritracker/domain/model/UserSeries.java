@@ -21,7 +21,7 @@ public class UserSeries {
 
     Integer totalEpisodes;
     String network;
-    String notes;
+    @With String notes;
 
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
