@@ -14,8 +14,5 @@ public class TmdbSearchResponse {
 
         @com.fasterxml.jackson.annotation.JsonProperty("poster_path")
         private String posterPath;
-
-        @com.fasterxml.jackson.annotation.JsonProperty("first_air_date")
-        private String firstAirDate;
     }
 }

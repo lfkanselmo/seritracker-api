@@ -1,5 +1,6 @@
 package com.seritracker.infrastructure.security;
 
+import com.seritracker.domain.port.out.TokenService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -11,7 +12,7 @@ import java.util.Date;
 import java.util.HexFormat;
 
 @Service
-public class JwtService {
+public class JwtService implements TokenService {
 
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_ROLE = "role";
@@ -22,7 +23,8 @@ public class JwtService {
     @Value("${jwt.access-expiration}")
     private long accessExpiration;
 
-    public String generateToken(Long userId, String email, String role) {
+    @Override
+    public String generateAccessToken(Long userId, String email, String role) {
         return Jwts.builder()
                 .subject(email)
                 .claim(CLAIM_USER_ID, userId)

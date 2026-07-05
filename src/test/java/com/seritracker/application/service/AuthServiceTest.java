@@ -2,21 +2,15 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
+import com.seritracker.domain.model.AuthResult;
 import com.seritracker.domain.model.PasswordResetToken;
 import com.seritracker.domain.model.RefreshToken;
 import com.seritracker.domain.model.User;
 import com.seritracker.domain.port.out.EmailSender;
 import com.seritracker.domain.port.out.PasswordResetTokenRepository;
 import com.seritracker.domain.port.out.RefreshTokenRepository;
+import com.seritracker.domain.port.out.TokenService;
 import com.seritracker.domain.port.out.UserRepository;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
-import com.seritracker.infrastructure.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,7 +37,7 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock private UserRepository userRepository;
-    @Mock private JwtService jwtService;
+    @Mock private TokenService tokenService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private RefreshTokenRepository refreshTokenRepository;
@@ -70,14 +64,6 @@ class AuthServiceTest {
                 .build();
     }
 
-    private RegisterRequest buildRegisterRequest() {
-        return new RegisterRequest("Test User", "test@test.com", "password123");
-    }
-
-    private LoginRequest buildLoginRequest() {
-        return new LoginRequest("test@test.com", "password123");
-    }
-
     // ── register ───────────────────────────────────────────────────────
 
     @Nested
@@ -88,16 +74,15 @@ class AuthServiceTest {
         @DisplayName("should register user when email is not taken")
         void shouldRegisterUser_whenEmailIsNotTaken() {
             // Arrange
-            RegisterRequest request = buildRegisterRequest();
             User saved = buildUser();
 
-            when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
-            when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
+            when(userRepository.existsByEmail("test@test.com")).thenReturn(false);
+            when(passwordEncoder.encode("password123")).thenReturn("hashed_password");
             when(userRepository.save(any())).thenReturn(saved);
-            when(jwtService.generateToken(saved.getId(), saved.getEmail(), saved.getRole())).thenReturn("jwt_token");
+            when(tokenService.generateAccessToken(saved.getId(), saved.getEmail(), saved.getRole())).thenReturn("jwt_token");
 
             // Act
-            AuthResponse result = authService.register(request);
+            AuthResult result = authService.register("Test User", "test@test.com", "password123");
 
             // Assert
             assertThat(result).isNotNull();
@@ -112,11 +97,10 @@ class AuthServiceTest {
         @DisplayName("should throw IllegalArgumentException when email is already taken")
         void shouldThrowException_whenEmailIsAlreadyTaken() {
             // Arrange
-            RegisterRequest request = buildRegisterRequest();
-            when(userRepository.existsByEmail(request.getEmail())).thenReturn(true);
+            when(userRepository.existsByEmail("test@test.com")).thenReturn(true);
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.register(request))
+            assertThatThrownBy(() -> authService.register("Test User", "test@test.com", "password123"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Email already registered");
 
@@ -127,19 +111,18 @@ class AuthServiceTest {
         @DisplayName("should encode password before saving")
         void shouldEncodePassword_beforeSaving() {
             // Arrange
-            RegisterRequest request = buildRegisterRequest();
             User saved = buildUser();
 
             when(userRepository.existsByEmail(anyString())).thenReturn(false);
-            when(passwordEncoder.encode(request.getPassword())).thenReturn("hashed_password");
+            when(passwordEncoder.encode("password123")).thenReturn("hashed_password");
             when(userRepository.save(any())).thenReturn(saved);
-            when(jwtService.generateToken(any(), anyString(), anyString())).thenReturn("jwt_token");
+            when(tokenService.generateAccessToken(any(), anyString(), anyString())).thenReturn("jwt_token");
 
             // Act
-            authService.register(request);
+            authService.register("Test User", "test@test.com", "password123");
 
             // Assert
-            verify(passwordEncoder).encode(request.getPassword());
+            verify(passwordEncoder).encode("password123");
         }
     }
 
@@ -153,15 +136,14 @@ class AuthServiceTest {
         @DisplayName("should return token when credentials are valid")
         void shouldReturnToken_whenCredentialsAreValid() {
             // Arrange
-            LoginRequest request = buildLoginRequest();
             User user = buildUser();
 
-            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
-            when(passwordEncoder.matches(request.getPassword(), user.getPasswordHash())).thenReturn(true);
-            when(jwtService.generateToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("jwt_token");
+            when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(true);
+            when(tokenService.generateAccessToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("jwt_token");
 
             // Act
-            AuthResponse result = authService.login(request);
+            AuthResult result = authService.login("test@test.com", "password123");
 
             // Assert
             assertThat(result).isNotNull();
@@ -174,11 +156,10 @@ class AuthServiceTest {
         @DisplayName("should throw BadCredentialsException when user does not exist")
         void shouldThrowBadCredentialsException_whenUserDoesNotExist() {
             // Arrange
-            LoginRequest request = buildLoginRequest();
-            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.login(request))
+            assertThatThrownBy(() -> authService.login("test@test.com", "password123"))
                     .isInstanceOf(BadCredentialsException.class);
 
             verify(passwordEncoder, never()).matches(anyString(), anyString());
@@ -188,17 +169,16 @@ class AuthServiceTest {
         @DisplayName("should throw BadCredentialsException when password is wrong")
         void shouldThrowBadCredentialsException_whenPasswordIsWrong() {
             // Arrange
-            LoginRequest request = buildLoginRequest();
             User user = buildUser();
 
-            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
-            when(passwordEncoder.matches(request.getPassword(), user.getPasswordHash())).thenReturn(false);
+            when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.login(request))
+            assertThatThrownBy(() -> authService.login("test@test.com", "password123"))
                     .isInstanceOf(BadCredentialsException.class);
 
-            verify(jwtService, never()).generateToken(any(), anyString(), anyString());
+            verify(tokenService, never()).generateAccessToken(any(), anyString(), anyString());
         }
     }
 
@@ -213,14 +193,13 @@ class AuthServiceTest {
         void shouldUpdatePasswordHash_whenCurrentPasswordMatches() {
             // Arrange
             User user = buildUser();
-            ChangePasswordRequest request = new ChangePasswordRequest("password123", "newPassword456");
 
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(true);
             when(passwordEncoder.encode("newPassword456")).thenReturn("new_hashed_password");
 
             // Act
-            authService.changePassword(1L, request);
+            authService.changePassword(1L, "password123", "newPassword456");
 
             // Assert
             verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
@@ -232,13 +211,12 @@ class AuthServiceTest {
         void shouldThrowBadCredentialsException_whenCurrentPasswordIsWrong() {
             // Arrange
             User user = buildUser();
-            ChangePasswordRequest request = new ChangePasswordRequest("wrong", "newPassword456");
 
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("wrong", user.getPasswordHash())).thenReturn(false);
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.changePassword(1L, request))
+            assertThatThrownBy(() -> authService.changePassword(1L, "wrong", "newPassword456"))
                     .isInstanceOf(BadCredentialsException.class);
 
             verify(userRepository, never()).save(any());
@@ -248,11 +226,10 @@ class AuthServiceTest {
         @DisplayName("should throw BadCredentialsException when the user does not exist")
         void shouldThrowBadCredentialsException_whenUserDoesNotExist() {
             // Arrange
-            ChangePasswordRequest request = new ChangePasswordRequest("password123", "newPassword456");
             when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> authService.changePassword(99L, request))
+            assertThatThrownBy(() -> authService.changePassword(99L, "password123", "newPassword456"))
                     .isInstanceOf(BadCredentialsException.class);
 
             verify(passwordEncoder, never()).matches(anyString(), anyString());
@@ -273,7 +250,7 @@ class AuthServiceTest {
             when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
             // Act
-            authService.forgotPassword(new ForgotPasswordRequest(user.getEmail()));
+            authService.forgotPassword(user.getEmail());
 
             // Assert
             verify(passwordResetTokenRepository).deleteByUserId(user.getId());
@@ -289,7 +266,7 @@ class AuthServiceTest {
             when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
 
             // Act
-            authService.forgotPassword(new ForgotPasswordRequest("unknown@test.com"));
+            authService.forgotPassword("unknown@test.com");
 
             // Assert — silencioso, sin filtrar si el email existe
             verify(passwordResetTokenRepository, never()).save(any());
@@ -325,7 +302,7 @@ class AuthServiceTest {
             when(passwordEncoder.encode("newPassword456")).thenReturn("new_hashed_password");
 
             // Act
-            authService.resetPassword(new ResetPasswordRequest("raw-token", "newPassword456"));
+            authService.resetPassword("raw-token", "newPassword456");
 
             // Assert
             verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
@@ -338,7 +315,7 @@ class AuthServiceTest {
         void shouldThrowInvalidResetTokenException_whenTokenDoesNotExist() {
             when(passwordResetTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> authService.resetPassword(new ResetPasswordRequest("bad-token", "newPassword456")))
+            assertThatThrownBy(() -> authService.resetPassword("bad-token", "newPassword456"))
                     .isInstanceOf(InvalidResetTokenException.class);
 
             verify(userRepository, never()).save(any());
@@ -350,7 +327,7 @@ class AuthServiceTest {
             PasswordResetToken token = buildToken(LocalDateTime.now().minusMinutes(1));
             when(passwordResetTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
 
-            assertThatThrownBy(() -> authService.resetPassword(new ResetPasswordRequest("expired-token", "newPassword456")))
+            assertThatThrownBy(() -> authService.resetPassword("expired-token", "newPassword456"))
                     .isInstanceOf(InvalidResetTokenException.class);
 
             verify(passwordResetTokenRepository).deleteById(10L);
@@ -383,10 +360,10 @@ class AuthServiceTest {
 
             when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
             when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-            when(jwtService.generateToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("new_jwt_token");
+            when(tokenService.generateAccessToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("new_jwt_token");
 
             // Act
-            AuthResponse result = authService.refresh(new RefreshTokenRequest("raw-refresh-token"));
+            AuthResult result = authService.refresh("raw-refresh-token");
 
             // Assert
             assertThat(result.getAccessToken()).isEqualTo("new_jwt_token");
@@ -400,7 +377,7 @@ class AuthServiceTest {
         void shouldThrowInvalidRefreshTokenException_whenTokenDoesNotExist() {
             when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> authService.refresh(new RefreshTokenRequest("bad-token")))
+            assertThatThrownBy(() -> authService.refresh("bad-token"))
                     .isInstanceOf(InvalidRefreshTokenException.class);
         }
 
@@ -410,7 +387,7 @@ class AuthServiceTest {
             RefreshToken token = buildToken(LocalDateTime.now().minusDays(1));
             when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
 
-            assertThatThrownBy(() -> authService.refresh(new RefreshTokenRequest("expired-token")))
+            assertThatThrownBy(() -> authService.refresh("expired-token"))
                     .isInstanceOf(InvalidRefreshTokenException.class);
 
             verify(refreshTokenRepository).deleteByTokenHash(token.getTokenHash());
@@ -426,7 +403,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("should revoke the given refresh token")
         void shouldRevokeRefreshToken() {
-            authService.logout(new RefreshTokenRequest("raw-refresh-token"));
+            authService.logout("raw-refresh-token");
 
             verify(refreshTokenRepository).deleteByTokenHash(anyString());
         }

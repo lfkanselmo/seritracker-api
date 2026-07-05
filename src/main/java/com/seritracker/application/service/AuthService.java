@@ -2,21 +2,16 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
+import com.seritracker.domain.model.AuthResult;
 import com.seritracker.domain.model.PasswordResetToken;
 import com.seritracker.domain.model.RefreshToken;
 import com.seritracker.domain.model.User;
+import com.seritracker.domain.port.in.AuthUseCase;
 import com.seritracker.domain.port.out.EmailSender;
 import com.seritracker.domain.port.out.PasswordResetTokenRepository;
 import com.seritracker.domain.port.out.RefreshTokenRepository;
+import com.seritracker.domain.port.out.TokenService;
 import com.seritracker.domain.port.out.UserRepository;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
-import com.seritracker.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,12 +31,12 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthService implements AuthUseCase {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
-    private final JwtService jwtService;
+    private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -56,49 +51,52 @@ public class AuthService {
     @Value("${refresh-token.expiration-days}")
     private long refreshTokenExpirationDays;
 
-    public AuthResponse register(RegisterRequest request) {
+    @Override
+    public AuthResult register(String name, String email, String password) {
         log.info("Registering new user");
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(email)) {
             log.warn("Registration failed — email already registered");
             throw new IllegalArgumentException("Email already registered");
         }
 
         User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .name(name)
+                .email(email)
+                .passwordHash(passwordEncoder.encode(password))
                 .role("USER")
                 .build();
 
         User saved = userRepository.save(user);
         log.info("User id={} registered successfully", saved.getId());
 
-        return buildAuthResponse(saved);
+        return buildAuthResult(saved);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    @Override
+    public AuthResult login(String email, String password) {
         log.info("Login attempt");
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> {
                     log.warn("Login failed — user not found");
                     return new BadCredentialsException("Invalid credentials");
                 });
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             log.warn("Login failed — invalid password for userId={}", user.getId());
             throw new BadCredentialsException("Invalid credentials");
         }
 
         log.info("User id={} logged in successfully", user.getId());
-        return buildAuthResponse(user);
+        return buildAuthResult(user);
     }
 
-    public AuthResponse refresh(RefreshTokenRequest request) {
+    @Override
+    public AuthResult refresh(String refreshToken) {
         log.info("Attempting token refresh");
 
-        RefreshToken token = refreshTokenRepository.findByTokenHash(hash(request.getRefreshToken()))
+        RefreshToken token = refreshTokenRepository.findByTokenHash(hash(refreshToken))
                 .orElseThrow(InvalidRefreshTokenException::new);
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -114,34 +112,37 @@ public class AuthService {
         refreshTokenRepository.deleteByTokenHash(token.getTokenHash());
 
         log.info("Token refreshed successfully for userId={}", user.getId());
-        return buildAuthResponse(user);
+        return buildAuthResult(user);
     }
 
-    public void logout(RefreshTokenRequest request) {
-        refreshTokenRepository.deleteByTokenHash(hash(request.getRefreshToken()));
+    @Override
+    public void logout(String refreshToken) {
+        refreshTokenRepository.deleteByTokenHash(hash(refreshToken));
         log.info("Logout — refresh token revoked");
     }
 
-    public void changePassword(Long userId, ChangePasswordRequest request) {
+    @Override
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
         log.info("Changing password for userId={}", userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             log.warn("Password change failed — current password mismatch for userId={}", userId);
             throw new BadCredentialsException("Current password is incorrect");
         }
 
-        userRepository.save(user.withPasswordHash(passwordEncoder.encode(request.getNewPassword())));
+        userRepository.save(user.withPasswordHash(passwordEncoder.encode(newPassword)));
         refreshTokenRepository.deleteAllByUserId(userId);
         log.info("Password changed successfully for userId={} — all sessions revoked", userId);
     }
 
-    public void forgotPassword(ForgotPasswordRequest request) {
+    @Override
+    public void forgotPassword(String email) {
         log.info("Password reset requested");
 
-        Optional<User> maybeUser = userRepository.findByEmail(request.getEmail());
+        Optional<User> maybeUser = userRepository.findByEmail(email);
         if (maybeUser.isEmpty()) {
             // No revelamos si el email existe o no — misma respuesta para ambos casos.
             log.info("Password reset requested for an email that is not registered");
@@ -171,10 +172,11 @@ public class AuthService {
         log.info("Password reset email dispatched for userId={}", user.getId());
     }
 
-    public void resetPassword(ResetPasswordRequest request) {
+    @Override
+    public void resetPassword(String rawToken, String newPassword) {
         log.info("Attempting password reset with token");
 
-        PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(hash(request.getToken()))
+        PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(hash(rawToken))
                 .orElseThrow(InvalidResetTokenException::new);
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
@@ -186,18 +188,18 @@ public class AuthService {
         User user = userRepository.findById(token.getUserId())
                 .orElseThrow(InvalidResetTokenException::new);
 
-        userRepository.save(user.withPasswordHash(passwordEncoder.encode(request.getNewPassword())));
+        userRepository.save(user.withPasswordHash(passwordEncoder.encode(newPassword)));
         passwordResetTokenRepository.deleteById(token.getId());
         refreshTokenRepository.deleteAllByUserId(user.getId());
 
         log.info("Password reset successfully for userId={} — all sessions revoked", user.getId());
     }
 
-    private AuthResponse buildAuthResponse(User user) {
-        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+    private AuthResult buildAuthResult(User user) {
+        String accessToken = tokenService.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
         String refreshToken = createRefreshToken(user.getId());
 
-        return AuthResponse.builder()
+        return AuthResult.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .email(user.getEmail())

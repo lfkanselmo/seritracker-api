@@ -173,15 +173,15 @@ class UserSeriesRepositoryAdapterTest {
     }
 
     @Test
-    @DisplayName("findByUserIdAndStatus should filter by status")
-    void findByUserIdAndStatus_shouldFilterByStatus() {
+    @DisplayName("findAllByUserIdAndStatus should filter by status")
+    void findAllByUserIdAndStatus_shouldFilterByStatus() {
         UserSeriesEntity entity = buildEntity(1L);
         UserSeries domain = buildDomain(1L);
 
         when(jpaRepository.findByUserIdAndStatus(1L, "WATCHING")).thenReturn(List.of(entity));
         when(mapper.toDomain(entity)).thenReturn(domain);
 
-        List<UserSeries> result = adapter.findByUserIdAndStatus(1L, SeriesStatus.WATCHING);
+        List<UserSeries> result = adapter.findAllByUserIdAndStatus(1L, SeriesStatus.WATCHING);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStatus()).isEqualTo(SeriesStatus.WATCHING);

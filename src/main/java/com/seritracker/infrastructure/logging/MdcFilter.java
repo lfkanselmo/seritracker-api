@@ -30,7 +30,6 @@ public class MdcFilter extends OncePerRequestFilter {
             response.setHeader(REQUEST_ID_HEADER, requestId);
             filterChain.doFilter(request, response);
         } finally {
-            // Siempre limpiamos el MDC al finalizar el request
             MDC.clear();
         }
     }

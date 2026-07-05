@@ -12,8 +12,9 @@ public interface UserSeriesRepository {
     UserSeries save(UserSeries userSeries);
     Optional<UserSeries> findById(Long id);
     PageResult<UserSeries> findAllByUserId(Long userId, PageRequest pageRequest);
-    List<UserSeries> findByUserIdAndStatus(Long userId, SeriesStatus status);
+    List<UserSeries> findAllByUserIdAndStatus(Long userId, SeriesStatus status);
     PageResult<UserSeries> findByUserIdAndStatus(Long userId, SeriesStatus status, PageRequest pageRequest);
     boolean existsByUserIdAndTmdbId(Long userId, Integer tmdbId);
     void deleteById(Long id);
+    List<Long> findAllUserIds();
 }

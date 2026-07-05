@@ -1,6 +1,5 @@
 package com.seritracker.integration;
 
-import com.seritracker.infrastructure.adapter.out.persistence.JpaNotificationRepository;
 import com.seritracker.infrastructure.adapter.out.persistence.JpaUserRepository;
 import com.seritracker.infrastructure.adapter.out.persistence.JpaUserSeriesRepository;
 import com.seritracker.infrastructure.adapter.out.persistence.entity.UserEntity;
@@ -36,7 +35,6 @@ class PostgresIntegrationTest {
 
     @Autowired private JpaUserRepository userRepository;
     @Autowired private JpaUserSeriesRepository userSeriesRepository;
-    @Autowired private JpaNotificationRepository notificationRepository;
     @Autowired private EntityManager entityManager;
 
     @Test
@@ -86,7 +84,7 @@ class PostgresIntegrationTest {
         userSeriesRepository.saveAndFlush(buildSeries(user.getId(), 2001));
         userSeriesRepository.saveAndFlush(buildSeries(user.getId(), 2002));
 
-        List<Long> ids = notificationRepository.findAllDistinctUserIds();
+        List<Long> ids = userSeriesRepository.findAllDistinctUserIds();
 
         assertThat(ids).contains(user.getId());
     }

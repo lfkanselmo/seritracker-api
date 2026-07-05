@@ -25,11 +25,11 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
     private final TmdbClient             tmdbClient;
 
     @Override
-    @Scheduled(cron = "0 0 8 * * *") // Todos los días a las 8am
+    @Scheduled(cron = "0 0 8 * * *")
     public void checkUpcomingEpisodes() {
         log.info("Starting upcoming episodes check");
 
-        List<Long> userIds = notificationRepository.findAllUserIds();
+        List<Long> userIds = userSeriesRepository.findAllUserIds();
         log.info("Checking episodes for {} users", userIds.size());
 
         userIds.forEach(this::checkEpisodesForUser);
@@ -41,7 +41,7 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
 
     private void checkEpisodesForUser(Long userId) {
         List<UserSeries> watchingSeries = userSeriesRepository
-                .findByUserIdAndStatus(userId, SeriesStatus.WATCHING);
+                .findAllByUserIdAndStatus(userId, SeriesStatus.WATCHING);
 
         watchingSeries.forEach(series -> checkSeriesForUser(userId, series));
     }

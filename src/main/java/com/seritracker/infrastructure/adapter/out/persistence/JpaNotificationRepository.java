@@ -8,16 +8,11 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 public interface JpaNotificationRepository extends JpaRepository<NotificationEntity, Long> {
 
     Page<NotificationEntity> findByUserIdAndReadFalseOrderBySentAtDesc(Long userId, Pageable pageable);
 
     boolean existsByUserIdAndTmdbIdAndEpisodeCode(Long userId, Integer tmdbId, String episodeCode);
-
-    @Query("SELECT DISTINCT u.userId FROM UserSeriesEntity u")
-    List<Long> findAllDistinctUserIds();
 
     @Modifying
     @Transactional

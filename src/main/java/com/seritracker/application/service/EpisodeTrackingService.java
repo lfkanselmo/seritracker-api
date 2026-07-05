@@ -1,6 +1,5 @@
 package com.seritracker.application.service;
 
-import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.domain.model.Episode;
 import com.seritracker.domain.model.EpisodeInfo;
 import com.seritracker.domain.model.EpisodeWatch;
@@ -215,17 +214,6 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
     }
 
     private UserSeries findOrThrow(Long userId, Long id) {
-        UserSeries series = userSeriesRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Series id={} not found", id);
-                    return new SeriesNotFoundException(id);
-                });
-
-        if (!series.getUserId().equals(userId)) {
-            log.warn("Series id={} does not belong to userId={}", id, userId);
-            throw new SeriesNotFoundException(id);
-        }
-
-        return series;
+        return SeriesLookup.findOrThrow(userSeriesRepository, userId, id);
     }
 }

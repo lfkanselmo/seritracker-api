@@ -17,9 +17,6 @@ public class TmdbSeriesResponse {
     @JsonProperty("number_of_episodes")
     private Integer numberOfEpisodes;
 
-    @JsonProperty("number_of_seasons")
-    private Integer numberOfSeasons;
-
     @JsonProperty("networks")
     private List<TmdbNetwork> networks;
 

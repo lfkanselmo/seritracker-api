@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -40,18 +39,7 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
                 org.springframework.data.domain.PageRequest.of(pageRequest.getPage(), pageRequest.getSize())
         );
 
-        return new PageResult<>(
-                page.getContent().stream().map(mapper::toDomain).toList(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
-        );
-    }
-
-    @Override
-    public List<Long> findAllUserIds() {
-        return jpaRepository.findAllDistinctUserIds();
+        return PageResultMapper.from(page, mapper::toDomain);
     }
 
     @Override

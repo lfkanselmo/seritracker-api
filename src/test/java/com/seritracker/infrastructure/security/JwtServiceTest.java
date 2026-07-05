@@ -26,7 +26,7 @@ class JwtServiceTest {
     @Test
     @DisplayName("should generate a non-null token")
     void shouldGenerateToken_notNull() {
-        String token = jwtService.generateToken(1L, "user@test.com", "USER");
+        String token = jwtService.generateAccessToken(1L, "user@test.com", "USER");
         assertThat(token).isNotNull().isNotBlank();
     }
 
@@ -34,28 +34,28 @@ class JwtServiceTest {
     @DisplayName("should extract email from token correctly")
     void shouldExtractEmail_correctly() {
         String email = "user@test.com";
-        String token = jwtService.generateToken(1L, email, "USER");
+        String token = jwtService.generateAccessToken(1L, email, "USER");
         assertThat(jwtService.extractEmail(token)).isEqualTo(email);
     }
 
     @Test
     @DisplayName("should extract userId from token correctly")
     void shouldExtractUserId_correctly() {
-        String token = jwtService.generateToken(42L, "user@test.com", "USER");
+        String token = jwtService.generateAccessToken(42L, "user@test.com", "USER");
         assertThat(jwtService.extractUserId(token)).isEqualTo(42L);
     }
 
     @Test
     @DisplayName("should extract role from token correctly")
     void shouldExtractRole_correctly() {
-        String token = jwtService.generateToken(1L, "user@test.com", "ADMIN");
+        String token = jwtService.generateAccessToken(1L, "user@test.com", "ADMIN");
         assertThat(jwtService.extractRole(token)).isEqualTo("ADMIN");
     }
 
     @Test
     @DisplayName("should return true for valid token")
     void shouldReturnTrue_forValidToken() {
-        String token = jwtService.generateToken(1L, "user@test.com", "USER");
+        String token = jwtService.generateAccessToken(1L, "user@test.com", "USER");
         assertThat(jwtService.isTokenValid(token)).isTrue();
     }
 
@@ -72,15 +72,15 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(expiredService, "secret",     TEST_SECRET);
         ReflectionTestUtils.setField(expiredService, "accessExpiration", -1000L);
 
-        String expiredToken = expiredService.generateToken(1L, "user@test.com", "USER");
+        String expiredToken = expiredService.generateAccessToken(1L, "user@test.com", "USER");
         assertThat(expiredService.isTokenValid(expiredToken)).isFalse();
     }
 
     @Test
     @DisplayName("should generate different tokens for different emails")
     void shouldGenerateDifferentTokens_forDifferentEmails() {
-        String token1 = jwtService.generateToken(1L, "user1@test.com", "USER");
-        String token2 = jwtService.generateToken(2L, "user2@test.com", "USER");
+        String token1 = jwtService.generateAccessToken(1L, "user1@test.com", "USER");
+        String token2 = jwtService.generateAccessToken(2L, "user2@test.com", "USER");
         assertThat(token1).isNotEqualTo(token2);
     }
 }

@@ -1,16 +1,16 @@
 package com.seritracker.infrastructure.adapter.in.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.seritracker.application.service.AuthService;
 import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
+import com.seritracker.domain.model.AuthResult;
+import com.seritracker.domain.port.in.AuthUseCase;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
-import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
 import com.seritracker.infrastructure.config.GlobalExceptionHandler;
 import com.seritracker.infrastructure.security.UserPrincipal;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("AuthController")
 class AuthControllerTest {
 
-    @Mock private AuthService authService;
+    @Mock private AuthUseCase authUseCase;
 
     @InjectMocks private AuthController authController;
 
@@ -69,8 +69,8 @@ class AuthControllerTest {
         SecurityContextHolder.clearContext();
     }
 
-    private AuthResponse buildAuthResponse() {
-        return AuthResponse.builder()
+    private AuthResult buildAuthResult() {
+        return AuthResult.builder()
                 .accessToken("jwt_token")
                 .refreshToken("refresh_token")
                 .email("user@test.com")
@@ -89,7 +89,7 @@ class AuthControllerTest {
         @DisplayName("should return 201 when registration succeeds")
         void shouldReturn201_whenRegistrationSucceeds() throws Exception {
             RegisterRequest request = new RegisterRequest("Test User", "user@test.com", "password123");
-            when(authService.register(any())).thenReturn(buildAuthResponse());
+            when(authUseCase.register(any(), any(), any())).thenReturn(buildAuthResult());
 
             mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -132,7 +132,7 @@ class AuthControllerTest {
         @DisplayName("should return 400 when email is already registered")
         void shouldReturn400_whenEmailIsAlreadyRegistered() throws Exception {
             RegisterRequest request = new RegisterRequest("Test", "user@test.com", "password123");
-            when(authService.register(any()))
+            when(authUseCase.register(any(), any(), any()))
                     .thenThrow(new IllegalArgumentException("Email already registered"));
 
             mockMvc.perform(post("/api/v1/auth/register")
@@ -153,7 +153,7 @@ class AuthControllerTest {
         @DisplayName("should return 200 when login succeeds")
         void shouldReturn200_whenLoginSucceeds() throws Exception {
             LoginRequest request = new LoginRequest("user@test.com", "password123");
-            when(authService.login(any())).thenReturn(buildAuthResponse());
+            when(authUseCase.login(any(), any())).thenReturn(buildAuthResult());
 
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -166,7 +166,7 @@ class AuthControllerTest {
         @DisplayName("should return 401 when credentials are invalid")
         void shouldReturn401_whenCredentialsAreInvalid() throws Exception {
             LoginRequest request = new LoginRequest("user@test.com", "wrong");
-            when(authService.login(any()))
+            when(authUseCase.login(any(), any()))
                     .thenThrow(new BadCredentialsException("Invalid credentials"));
 
             mockMvc.perform(post("/api/v1/auth/login")
@@ -208,7 +208,7 @@ class AuthControllerTest {
         void shouldReturn401_whenCurrentPasswordIsWrong() throws Exception {
             ChangePasswordRequest request = new ChangePasswordRequest("wrong", "newPassword456");
             doThrow(new BadCredentialsException("Current password is incorrect"))
-                    .when(authService).changePassword(any(), any());
+                    .when(authUseCase).changePassword(any(), any(), any());
 
             mockMvc.perform(patch("/api/v1/auth/password")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -288,7 +288,7 @@ class AuthControllerTest {
         @DisplayName("should return 400 when the token is invalid or expired")
         void shouldReturn400_whenTokenIsInvalid() throws Exception {
             ResetPasswordRequest request = new ResetPasswordRequest("bad-token", "newPassword456");
-            doThrow(new InvalidResetTokenException()).when(authService).resetPassword(any());
+            doThrow(new InvalidResetTokenException()).when(authUseCase).resetPassword(any(), any());
 
             mockMvc.perform(post("/api/v1/auth/reset-password")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -317,7 +317,7 @@ class AuthControllerTest {
         @DisplayName("should return 200 with a new token pair when the refresh token is valid")
         void shouldReturn200_whenRefreshTokenIsValid() throws Exception {
             RefreshTokenRequest request = new RefreshTokenRequest("valid-refresh-token");
-            when(authService.refresh(any())).thenReturn(buildAuthResponse());
+            when(authUseCase.refresh(any())).thenReturn(buildAuthResult());
 
             mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -331,7 +331,7 @@ class AuthControllerTest {
         @DisplayName("should return 401 when the refresh token is invalid or expired")
         void shouldReturn401_whenRefreshTokenIsInvalid() throws Exception {
             RefreshTokenRequest request = new RefreshTokenRequest("bad-token");
-            doThrow(new InvalidRefreshTokenException()).when(authService).refresh(any());
+            doThrow(new InvalidRefreshTokenException()).when(authUseCase).refresh(any());
 
             mockMvc.perform(post("/api/v1/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)

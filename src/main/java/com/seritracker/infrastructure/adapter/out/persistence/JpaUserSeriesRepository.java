@@ -4,6 +4,7 @@ import com.seritracker.infrastructure.adapter.out.persistence.entity.UserSeriesE
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
@@ -14,4 +15,7 @@ public interface JpaUserSeriesRepository extends JpaRepository<UserSeriesEntity,
     Page<UserSeriesEntity> findByUserIdAndStatus(Long userId, String status, Pageable pageable);
     Page<UserSeriesEntity> findByUserIdAndStatusAndTitleContainingIgnoreCase(Long userId, String status, String search, Pageable pageable);
     boolean existsByUserIdAndTmdbId(Long userId, Integer tmdbId);
+
+    @Query("SELECT DISTINCT u.userId FROM UserSeriesEntity u")
+    List<Long> findAllDistinctUserIds();
 }

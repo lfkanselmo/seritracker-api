@@ -46,7 +46,7 @@ public class UserSeriesRepositoryAdapter implements UserSeriesRepository {
     }
 
     @Override
-    public List<UserSeries> findByUserIdAndStatus(Long userId, SeriesStatus status) {
+    public List<UserSeries> findAllByUserIdAndStatus(Long userId, SeriesStatus status) {
         return jpaRepository.findByUserIdAndStatus(userId, status.name())
                 .stream()
                 .map(mapper::toDomain)
@@ -72,6 +72,11 @@ public class UserSeriesRepositoryAdapter implements UserSeriesRepository {
         jpaRepository.deleteById(id);
     }
 
+    @Override
+    public List<Long> findAllUserIds() {
+        return jpaRepository.findAllDistinctUserIds();
+    }
+
     private org.springframework.data.domain.PageRequest toPageable(PageRequest pageRequest) {
         Sort sort = (pageRequest.getSortBy() != null && pageRequest.getSortDirection() != null)
                 ? Sort.by(
@@ -86,12 +91,6 @@ public class UserSeriesRepositoryAdapter implements UserSeriesRepository {
     }
 
     private PageResult<UserSeries> toPageResult(Page<UserSeriesEntity> page) {
-        return new PageResult<>(
-                page.getContent().stream().map(mapper::toDomain).toList(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
-        );
+        return PageResultMapper.from(page, mapper::toDomain);
     }
 }
