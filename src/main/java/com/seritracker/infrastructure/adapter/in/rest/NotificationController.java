@@ -47,7 +47,7 @@ public class NotificationController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         notificationUseCase.markAsRead(principal.getId(), id);
-        return ApiResponse.noContent();
+        return ApiResponse.noContent("Marked as read");
     }
 
     @Operation(summary = "Disparar verificación de episodios manualmente")

@@ -2,6 +2,7 @@ package com.seritracker.domain.model;
 
 import lombok.Builder;
 import lombok.Value;
+import lombok.With;
 
 import java.time.LocalDateTime;
 
@@ -11,7 +12,9 @@ public class User {
     Long id;
     String email;
     String name;
-    String passwordHash;
+
+    @With String passwordHash;
+
     String role;
     LocalDateTime createdAt;
 }

@@ -2,6 +2,7 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.model.User;
 import com.seritracker.domain.port.out.UserRepository;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
@@ -172,6 +173,62 @@ class AuthServiceTest {
                     .isInstanceOf(BadCredentialsException.class);
 
             verify(jwtService, never()).generateToken(any(), anyString(), anyString());
+        }
+    }
+
+    // ── changePassword ────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("changePassword")
+    class ChangePassword {
+
+        @Test
+        @DisplayName("should update the password hash when the current password matches")
+        void shouldUpdatePasswordHash_whenCurrentPasswordMatches() {
+            // Arrange
+            User user = buildUser();
+            ChangePasswordRequest request = new ChangePasswordRequest("password123", "newPassword456");
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(true);
+            when(passwordEncoder.encode("newPassword456")).thenReturn("new_hashed_password");
+
+            // Act
+            authService.changePassword(1L, request);
+
+            // Assert
+            verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
+        }
+
+        @Test
+        @DisplayName("should throw BadCredentialsException when the current password is wrong")
+        void shouldThrowBadCredentialsException_whenCurrentPasswordIsWrong() {
+            // Arrange
+            User user = buildUser();
+            ChangePasswordRequest request = new ChangePasswordRequest("wrong", "newPassword456");
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("wrong", user.getPasswordHash())).thenReturn(false);
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.changePassword(1L, request))
+                    .isInstanceOf(BadCredentialsException.class);
+
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw BadCredentialsException when the user does not exist")
+        void shouldThrowBadCredentialsException_whenUserDoesNotExist() {
+            // Arrange
+            ChangePasswordRequest request = new ChangePasswordRequest("password123", "newPassword456");
+            when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThatThrownBy(() -> authService.changePassword(99L, request))
+                    .isInstanceOf(BadCredentialsException.class);
+
+            verify(passwordEncoder, never()).matches(anyString(), anyString());
         }
     }
 }

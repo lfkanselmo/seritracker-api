@@ -30,12 +30,22 @@ class ApiResponseTest {
     }
 
     @Test
-    @DisplayName("noContent() should return success response with null data")
+    @DisplayName("noContent() should return success response with null data and 'Deleted' message")
     void noContent_shouldReturnNoContentResponse() {
         ApiResponse<Void> response = ApiResponse.noContent();
 
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData()).isNull();
         assertThat(response.getMessage()).isEqualTo("Deleted");
+    }
+
+    @Test
+    @DisplayName("noContent(message) should return success response with the given message")
+    void noContentWithMessage_shouldReturnGivenMessage() {
+        ApiResponse<Void> response = ApiResponse.noContent("Password changed");
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).isNull();
+        assertThat(response.getMessage()).isEqualTo("Password changed");
     }
 }

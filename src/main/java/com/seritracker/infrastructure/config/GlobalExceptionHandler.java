@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleBadCredentials(BadCredentialsException ex) {
-        return buildError("Invalid credentials");
+        return buildError(ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

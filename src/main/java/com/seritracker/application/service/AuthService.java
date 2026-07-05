@@ -2,6 +2,7 @@ package com.seritracker.application.service;
 
 import com.seritracker.domain.model.User;
 import com.seritracker.domain.port.out.UserRepository;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
@@ -71,5 +72,20 @@ public class AuthService {
                 .name(user.getName())
                 .userId(user.getId())
                 .build();
+    }
+
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        log.info("Changing password for userId={}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            log.warn("Password change failed — current password mismatch for userId={}", userId);
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+
+        userRepository.save(user.withPasswordHash(passwordEncoder.encode(request.getNewPassword())));
+        log.info("Password changed successfully for userId={}", userId);
     }
 }

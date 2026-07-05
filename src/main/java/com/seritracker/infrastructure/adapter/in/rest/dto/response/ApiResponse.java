@@ -33,10 +33,14 @@ public class ApiResponse<T> {
     }
 
     public static ApiResponse<Void> noContent() {
+        return noContent("Deleted");
+    }
+
+    public static ApiResponse<Void> noContent(String message) {
         return ApiResponse.<Void>builder()
                 .success(true)
                 .data(null)
-                .message("Deleted")
+                .message(message)
                 .timestamp(LocalDateTime.now())
                 .build();
     }

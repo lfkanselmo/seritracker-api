@@ -2,10 +2,13 @@ package com.seritracker.infrastructure.adapter.in.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seritracker.application.service.AuthService;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
 import com.seritracker.infrastructure.config.GlobalExceptionHandler;
+import com.seritracker.infrastructure.security.UserPrincipal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,11 +19,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -37,11 +47,21 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
+        UserPrincipal principal = new UserPrincipal(1L, "test@test.com", "hashed_password", List.of());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, List.of()));
+
         mockMvc = MockMvcBuilders
                 .standaloneSetup(authController)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
         objectMapper = new ObjectMapper();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     private AuthResponse buildAuthResponse() {
@@ -155,6 +175,48 @@ class AuthControllerTest {
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"email\":\"\",\"password\":\"password123\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── PATCH /api/v1/auth/password ────────────────────────────────────
+
+    @Nested
+    @DisplayName("PATCH /api/v1/auth/password")
+    class ChangePassword {
+
+        @Test
+        @DisplayName("should return 200 when the password is changed")
+        void shouldReturn200_whenPasswordIsChanged() throws Exception {
+            ChangePasswordRequest request = new ChangePasswordRequest("current123", "newPassword456");
+
+            mockMvc.perform(patch("/api/v1/auth/password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @DisplayName("should return 401 when the current password is wrong")
+        void shouldReturn401_whenCurrentPasswordIsWrong() throws Exception {
+            ChangePasswordRequest request = new ChangePasswordRequest("wrong", "newPassword456");
+            doThrow(new BadCredentialsException("Current password is incorrect"))
+                    .when(authService).changePassword(any(), any());
+
+            mockMvc.perform(patch("/api/v1/auth/password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.message").value("Current password is incorrect"));
+        }
+
+        @Test
+        @DisplayName("should return 400 when the new password is too short")
+        void shouldReturn400_whenNewPasswordIsTooShort() throws Exception {
+            mockMvc.perform(patch("/api/v1/auth/password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"currentPassword\":\"current123\",\"newPassword\":\"123\"}"))
                     .andExpect(status().isBadRequest());
         }
     }
