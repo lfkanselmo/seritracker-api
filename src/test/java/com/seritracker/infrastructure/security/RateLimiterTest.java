@@ -11,16 +11,14 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("LoginRateLimiter")
-class LoginRateLimiterTest {
+@DisplayName("RateLimiter")
+class RateLimiterTest {
 
-    private LoginRateLimiter rateLimiter;
+    private RateLimiter rateLimiter;
 
     @BeforeEach
     void setUp() {
-        rateLimiter = new LoginRateLimiter();
-        ReflectionTestUtils.setField(rateLimiter, "maxAttempts", 3);
-        ReflectionTestUtils.setField(rateLimiter, "windowMinutes", 15L);
+        rateLimiter = new RateLimiter(3, 15L);
     }
 
     @Test
@@ -32,8 +30,8 @@ class LoginRateLimiterTest {
     @Test
     @DisplayName("should not block before reaching the max attempts")
     void shouldNotBlock_beforeReachingMaxAttempts() {
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
 
         assertThat(rateLimiter.isBlocked("1.2.3.4")).isFalse();
     }
@@ -41,9 +39,9 @@ class LoginRateLimiterTest {
     @Test
     @DisplayName("should block once max attempts is reached")
     void shouldBlock_onceMaxAttemptsIsReached() {
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
 
         assertThat(rateLimiter.isBlocked("1.2.3.4")).isTrue();
     }
@@ -51,9 +49,9 @@ class LoginRateLimiterTest {
     @Test
     @DisplayName("should track different keys independently")
     void shouldTrackDifferentKeys_independently() {
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
 
         assertThat(rateLimiter.isBlocked("1.2.3.4")).isTrue();
         assertThat(rateLimiter.isBlocked("5.6.7.8")).isFalse();
@@ -62,9 +60,9 @@ class LoginRateLimiterTest {
     @Test
     @DisplayName("should reset attempts on success")
     void shouldResetAttempts_onSuccess() {
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
         assertThat(rateLimiter.isBlocked("1.2.3.4")).isTrue();
 
         rateLimiter.recordSuccess("1.2.3.4");
@@ -76,9 +74,9 @@ class LoginRateLimiterTest {
     @DisplayName("should not block once the window has expired")
     @SuppressWarnings("unchecked")
     void shouldNotBlock_onceWindowHasExpired() {
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
-        rateLimiter.recordFailure("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
+        rateLimiter.recordAttempt("1.2.3.4");
         assertThat(rateLimiter.isBlocked("1.2.3.4")).isTrue();
 
         // Retrocede el inicio de la ventana para simular que ya expiro, sin depender de tiempo real

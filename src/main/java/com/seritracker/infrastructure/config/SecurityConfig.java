@@ -2,6 +2,7 @@ package com.seritracker.infrastructure.config;
 
 import com.seritracker.infrastructure.security.JwtAuthFilter;
 import com.seritracker.infrastructure.security.LoginRateLimitFilter;
+import com.seritracker.infrastructure.security.RegisterRateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    private final RegisterRateLimitFilter registerRateLimitFilter;
 
     @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
@@ -53,7 +55,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(registerRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

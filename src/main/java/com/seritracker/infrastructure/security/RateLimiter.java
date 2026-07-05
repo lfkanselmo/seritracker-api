@@ -1,23 +1,21 @@
 package com.seritracker.infrastructure.security;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Component
-public class LoginRateLimiter {
+public class RateLimiter {
 
-    @Value("${login.rate-limit.max-attempts}")
-    private int maxAttempts;
-
-    @Value("${login.rate-limit.window-minutes}")
-    private long windowMinutes;
+    private final int maxAttempts;
+    private final long windowMinutes;
 
     private final ConcurrentHashMap<String, Attempts> attemptsByKey = new ConcurrentHashMap<>();
+
+    public RateLimiter(int maxAttempts, long windowMinutes) {
+        this.maxAttempts = maxAttempts;
+        this.windowMinutes = windowMinutes;
+    }
 
     public boolean isBlocked(String key) {
         Attempts attempts = attemptsByKey.get(key);
@@ -31,7 +29,7 @@ public class LoginRateLimiter {
         return attempts.count.get() >= maxAttempts;
     }
 
-    public void recordFailure(String key) {
+    public void recordAttempt(String key) {
         attemptsByKey.compute(key, (k, existing) -> {
             if (existing == null || existing.isExpired(windowMinutes)) {
                 return new Attempts();

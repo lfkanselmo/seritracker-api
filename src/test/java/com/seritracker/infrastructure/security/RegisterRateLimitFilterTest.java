@@ -15,8 +15,8 @@ import org.springframework.http.HttpStatus;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("LoginRateLimitFilter")
-class LoginRateLimitFilterTest {
+@DisplayName("RegisterRateLimitFilter")
+class RegisterRateLimitFilterTest {
 
     @Mock private RateLimiter rateLimiter;
     @Mock private ObjectMapper objectMapper;
@@ -24,11 +24,11 @@ class LoginRateLimitFilterTest {
     @Mock private HttpServletResponse response;
     @Mock private FilterChain filterChain;
 
-    @InjectMocks private LoginRateLimitFilter filter;
+    @InjectMocks private RegisterRateLimitFilter filter;
 
     @Test
-    @DisplayName("should pass through requests that are not login")
-    void shouldPassThrough_whenNotLoginRequest() throws Exception {
+    @DisplayName("should pass through requests that are not register")
+    void shouldPassThrough_whenNotRegisterRequest() throws Exception {
         when(request.getMethod()).thenReturn("GET");
 
         filter.doFilterInternal(request, response, filterChain);
@@ -41,7 +41,7 @@ class LoginRateLimitFilterTest {
     @DisplayName("should respond 429 and short-circuit when the IP is blocked")
     void shouldRespond429_whenIpIsBlocked() throws Exception {
         when(request.getMethod()).thenReturn("POST");
-        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/register");
         when(request.getRemoteAddr()).thenReturn("1.2.3.4");
         when(rateLimiter.isBlocked("1.2.3.4")).thenReturn(true);
         when(response.getWriter()).thenReturn(mock(java.io.PrintWriter.class));
@@ -53,34 +53,17 @@ class LoginRateLimitFilterTest {
     }
 
     @Test
-    @DisplayName("should record a failure when login responds 401")
-    void shouldRecordFailure_whenLoginRespondsUnauthorized() throws Exception {
+    @DisplayName("should record an attempt regardless of the response outcome (unlike login, it never checks status)")
+    void shouldRecordAttempt_regardlessOfOutcome() throws Exception {
         when(request.getMethod()).thenReturn("POST");
-        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/register");
         when(request.getRemoteAddr()).thenReturn("1.2.3.4");
         when(rateLimiter.isBlocked("1.2.3.4")).thenReturn(false);
-        when(response.getStatus()).thenReturn(HttpServletResponse.SC_UNAUTHORIZED);
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
         verify(rateLimiter).recordAttempt("1.2.3.4");
-        verify(rateLimiter, never()).recordSuccess(any());
-    }
-
-    @Test
-    @DisplayName("should record a success when login responds 200")
-    void shouldRecordSuccess_whenLoginRespondsOk() throws Exception {
-        when(request.getMethod()).thenReturn("POST");
-        when(request.getRequestURI()).thenReturn("/api/v1/auth/login");
-        when(request.getRemoteAddr()).thenReturn("1.2.3.4");
-        when(rateLimiter.isBlocked("1.2.3.4")).thenReturn(false);
-        when(response.getStatus()).thenReturn(HttpServletResponse.SC_OK);
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain).doFilter(request, response);
-        verify(rateLimiter).recordSuccess("1.2.3.4");
-        verify(rateLimiter, never()).recordAttempt(any());
+        verify(response, never()).getStatus();
     }
 }
