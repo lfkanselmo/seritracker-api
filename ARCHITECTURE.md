@@ -4,14 +4,21 @@
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Frontend | Angular + Angular Material | v21 |
+| Frontend | Angular (zoneless) + Angular Material | v21 |
 | Backend | Java + Spring Boot | v3.5 |
 | Base de datos | PostgreSQL | v16 |
 | ORM | Spring Data JPA + Hibernate | — |
 | Documentación API | Swagger / OpenAPI 3 | — |
-| Autenticación | Spring Security + JWT | — |
+| Autenticación | Spring Security + JWT (claims: `userId`, `role`) | — |
+| Rate limiting | Filtro propio en memoria (`POST /auth/login`) | — |
+| Cliente HTTP saliente | `RestClient` (Spring 6) — TMDB | — |
 | Logging | SLF4J + Logback | — |
 | Build tool backend | Maven | v3.9 |
+| Tests backend | JUnit 5 + Mockito + AssertJ + embedded-postgres | — |
+
+La identidad visual del frontend ("Ambilight") vive en
+[`seritracker-web/DESIGN_SYSTEM.md`](../seritracker-web/DESIGN_SYSTEM.md) —
+este documento cubre solo decisiones de arquitectura de software, no de UI.
 
 ---
 
@@ -35,28 +42,37 @@ seritracker-api/
     │
     ├── domain/
     │   ├── model/
-    │   │   ├── Series.java
+    │   │   ├── Series.java           ← resultado de búsqueda en TMDB (transitorio, no se persiste)
+    │   │   ├── SeriesStatus.java     ← enum: WATCHING, WANT_TO_WATCH, COMPLETED, ABANDONED
     │   │   ├── User.java
-    │   │   └── UserSeries.java
+    │   │   ├── UserSeries.java       ← la serie DENTRO de la lista de un usuario (sí se persiste)
+    │   │   ├── Notification.java
+    │   │   ├── PageRequest.java      ← page/size, agnóstico de Spring Data
+    │   │   └── PageResult.java       ← content/page/size/totalElements/totalPages
     │   ├── port/
     │   │   ├── in/
     │   │   │   ├── CreateSeriesUseCase.java
     │   │   │   ├── UpdateSeriesUseCase.java
     │   │   │   ├── DeleteSeriesUseCase.java
     │   │   │   ├── SearchSeriesUseCase.java
-    │   │   │   └── AuthUseCase.java
+    │   │   │   ├── NotificationUseCase.java
+    │   │   │   └── CheckUpcomingEpisodesUseCase.java
     │   │   └── out/
-    │   │       ├── SeriesRepository.java
     │   │       ├── UserRepository.java
+    │   │       ├── UserSeriesRepository.java
+    │   │       ├── NotificationRepository.java
     │   │       └── TmdbClient.java
     │   └── exception/
     │       ├── SeriesNotFoundException.java
-    │       └── DuplicateSeriesException.java
+    │       ├── DuplicateSeriesException.java
+    │       └── NotificationNotFoundException.java
     │
     ├── application/
     │   └── service/
     │       ├── SeriesService.java
-    │       └── AuthService.java
+    │       ├── AuthService.java             ← depende del puerto UserRepository, no de JPA
+    │       ├── NotificationService.java     ← CRUD de notificaciones (listar, marcar leída)
+    │       └── EpisodeCheckService.java     ← decide qué notificar (próximos episodios)
     │
     └── infrastructure/
         ├── adapter/
@@ -64,33 +80,51 @@ seritracker-api/
         │   │   └── rest/
         │   │       ├── SeriesController.java
         │   │       ├── AuthController.java
+        │   │       ├── NotificationController.java
+        │   │       ├── TmdbController.java
         │   │       └── dto/
         │   │           ├── request/
         │   │           │   ├── CreateSeriesRequest.java
-        │   │           │   └── UpdateSeriesRequest.java
+        │   │           │   ├── UpdateStatusRequest.java
+        │   │           │   ├── UpdateRatingRequest.java
+        │   │           │   ├── UpdateEpisodesRequest.java
+        │   │           │   ├── LoginRequest.java
+        │   │           │   └── RegisterRequest.java
         │   │           └── response/
         │   │               ├── SeriesResponse.java
-        │   │               ├── SeriesListResponse.java
+        │   │               ├── NotificationResponse.java
+        │   │               ├── AuthResponse.java
+        │   │               ├── PageResponse.java   ← envoltorio genérico de paginación
         │   │               └── ApiResponse.java
         │   └── out/
         │       ├── persistence/
-        │       │   ├── SeriesRepositoryAdapter.java
         │       │   ├── UserRepositoryAdapter.java
+        │       │   ├── UserSeriesRepositoryAdapter.java
+        │       │   ├── NotificationRepositoryAdapter.java
         │       │   ├── entity/
-        │       │   │   ├── SeriesEntity.java
         │       │   │   ├── UserEntity.java
-        │       │   │   └── UserSeriesEntity.java
+        │       │   │   ├── UserSeriesEntity.java   ← tiene @Version (locking optimista)
+        │       │   │   └── NotificationEntity.java
         │       │   └── mapper/
-        │       │       ├── SeriesMapper.java
-        │       │       └── UserMapper.java
+        │       │       ├── UserMapper.java
+        │       │       ├── UserSeriesMapper.java
+        │       │       └── NotificationMapper.java
         │       └── tmdb/
-        │           ├── TmdbClientAdapter.java
+        │           ├── TmdbClientAdapter.java       ← usa RestClient, no RestTemplate
         │           └── dto/
+        │               ├── TmdbSearchResponse.java
         │               └── TmdbSeriesResponse.java
         ├── config/
-        │   ├── SecurityConfig.java
-        │   ├── CorsConfig.java
-        │   └── SwaggerConfig.java
+        │   ├── SecurityConfig.java    ← CORS, CSRF off, stateless, permitAll de auth/tmdb/swagger
+        │   ├── SwaggerConfig.java
+        │   └── GlobalExceptionHandler.java
+        ├── security/
+        │   ├── JwtService.java              ← genera/valida token, embebe userId + role como claims
+        │   ├── JwtAuthFilter.java
+        │   ├── UserDetailsServiceImpl.java
+        │   ├── UserPrincipal.java           ← lo que llega a los controllers vía @AuthenticationPrincipal
+        │   ├── LoginRateLimiter.java         ← contador en memoria por IP
+        │   └── LoginRateLimitFilter.java     ← responde 429 antes de llegar al controller
         └── logging/
             └── MdcFilter.java             ← Inyecta requestId en cada request
 ```
@@ -99,6 +133,14 @@ seritracker-api/
 
 ## Modelo de Base de Datos
 
+No existe una tabla `series_cache` separada — se evaluó y se descartó: los
+metadatos de TMDB (`title`, `poster_url`, `network`, `total_episodes`) se
+guardan **desnormalizados directamente en `user_series`**, tomados en el
+momento de agregar la serie. Es más simple para el tamaño actual del
+proyecto y evita tener que sincronizar una tabla de caché; el costo es que
+si una serie cambia de título en TMDB, no se refleja retroactivamente en
+las filas ya guardadas.
+
 ```sql
 -- Usuarios
 users (
@@ -106,68 +148,77 @@ users (
   email         VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   name          VARCHAR(100),
+  role          VARCHAR(20) NOT NULL DEFAULT 'USER',
   created_at    TIMESTAMPTZ DEFAULT NOW()
 )
 
--- Cache de series de TMDB
-series_cache (
-  tmdb_id        INTEGER PRIMARY KEY,
-  title          VARCHAR(255) NOT NULL,
-  poster_url     TEXT,
-  genres         TEXT[],
-  network        VARCHAR(100),
-  total_episodes INTEGER DEFAULT 0,
-  next_air_date  DATE,
-  last_synced_at TIMESTAMPTZ DEFAULT NOW()
-)
-
--- Relación usuario <-> serie
+-- Serie dentro de la lista de un usuario — metadatos de TMDB desnormalizados
 user_series (
   id               BIGSERIAL PRIMARY KEY,
-  user_id          BIGINT REFERENCES users(id),
-  tmdb_id          INTEGER REFERENCES series_cache(tmdb_id),
+  user_id          BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  tmdb_id          INTEGER NOT NULL,
+  title            VARCHAR(255) NOT NULL,
+  poster_url       TEXT,
   status           VARCHAR(20) NOT NULL DEFAULT 'WANT_TO_WATCH',
   rating           INTEGER CHECK (rating BETWEEN 1 AND 10),
-  watched_episodes INTEGER DEFAULT 0,
+  watched_episodes INTEGER NOT NULL DEFAULT 0,
+  total_episodes   INTEGER NOT NULL DEFAULT 0,
+  network          VARCHAR(100),
   notes            TEXT,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  version          BIGINT NOT NULL DEFAULT 0,   -- @Version JPA, locking optimista
   UNIQUE(user_id, tmdb_id)
 )
 
 -- Notificaciones enviadas
 notifications (
   id           BIGSERIAL PRIMARY KEY,
-  user_id      BIGINT REFERENCES users(id),
-  tmdb_id      INTEGER REFERENCES series_cache(tmdb_id),
+  user_id      BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  tmdb_id      INTEGER NOT NULL,
+  series_title VARCHAR(255) NOT NULL,
   episode_code VARCHAR(20),
-  air_date     DATE,
-  sent_at      TIMESTAMPTZ DEFAULT NOW()
+  air_date     DATE NOT NULL,
+  sent_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  read         BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE(user_id, tmdb_id, episode_code)
 )
 ```
+
+Ver `src/main/resources/db/migration/` (V1–V5) para el historial exacto —
+incluye la reversión de un usuario admin sembrado con credenciales
+conocidas (V4) y la adición de `version` para locking optimista (V5).
 
 ---
 
 ## Endpoints REST
 
 ```
-# Series
-GET    /api/v1/series                    ← lista todas las series del usuario
-GET    /api/v1/series/{id}               ← detalle de una serie
-POST   /api/v1/series                    ← agregar serie a la lista
-PATCH  /api/v1/series/{id}/status        ← cambiar estado
-PATCH  /api/v1/series/{id}/rating        ← calificar
-PATCH  /api/v1/series/{id}/episodes      ← actualizar episodios vistos
-DELETE /api/v1/series/{id}               ← eliminar de la lista
+# Series — requieren JWT; userId sale de @AuthenticationPrincipal, nunca de un parámetro
+GET    /api/v1/series?status=&page=&size=  ← lista paginada, filtro opcional por estado
+GET    /api/v1/series/{id}                 ← detalle de una serie
+POST   /api/v1/series                      ← agregar serie a la lista
+PATCH  /api/v1/series/{id}/status          ← cambiar estado
+PATCH  /api/v1/series/{id}/rating          ← calificar
+PATCH  /api/v1/series/{id}/episodes        ← actualizar episodios vistos
+DELETE /api/v1/series/{id}                 ← eliminar de la lista
 
-# Autenticación
+# Notificaciones — requieren JWT
+GET    /api/v1/notifications?page=&size=   ← no leídas, paginado
+PATCH  /api/v1/notifications/{id}/read     ← marcar como leída
+POST   /api/v1/notifications/check         ← disparar verificación manual
+
+# Autenticación — públicos; /login con rate limiting propio
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
 
-# TMDB
+# TMDB — públicos
 GET    /api/v1/tmdb/search?q=query       ← buscar series
 GET    /api/v1/tmdb/series/{tmdbId}      ← detalle de serie en TMDB
 ```
+
+Ver `SecurityConfig.filterChain()` para la lista exacta de rutas públicas
+(`permitAll`) — todo lo que no está ahí requiere `Authorization: Bearer <token>`.
 
 ---
 
@@ -175,13 +226,15 @@ GET    /api/v1/tmdb/series/{tmdbId}      ← detalle de serie en TMDB
 
 | Patrón | Dónde | Por qué |
 |--------|-------|---------|
-| Repository | port/out + persistence/ | Abstrae acceso a datos |
+| Repository | port/out (`UserRepository`, `UserSeriesRepository`, `NotificationRepository`) + persistence/ | Abstrae acceso a datos |
 | DTO | rest/dto/ | Desacopla API del dominio |
 | Mapper | persistence/mapper/ | Convierte entre capas |
 | Use Case | port/in/ | Define contratos claros |
 | Adapter | adapter/in y adapter/out | Implementa los puertos |
-| Builder | Entidades de dominio | Construcción limpia (Lombok) |
+| Builder | Entidades y modelos de dominio | Construcción limpia (Lombok) |
 | Exception Handler | GlobalExceptionHandler | Centraliza errores |
+| Filter Chain | `JwtAuthFilter`, `LoginRateLimitFilter` | Autenticación y rate limiting antes del controller |
+| Value Object | `PageRequest`, `PageResult` (dominio, agnósticos de Spring Data) | Paginación sin acoplar el dominio a JPA |
 
 ---
 
@@ -191,7 +244,9 @@ GET    /api/v1/tmdb/series/{tmdbId}      ← detalle de serie en TMDB
 Cada clase tiene una sola razón para cambiar.
 - `SeriesService` → orquesta el caso de uso
 - `TmdbClientAdapter` → habla con TMDB
-- `SeriesValidator` → valida reglas de negocio
+- `NotificationService` → CRUD de notificaciones (listar, marcar leída)
+- `EpisodeCheckService` → decide qué notificar (próximos episodios) — separado de `NotificationService` a propósito, son dos razones de cambio distintas
+- `LoginRateLimiter` → solo cuenta intentos; `LoginRateLimitFilter` → solo decide bloquear la request
 
 ### O — Open/Closed
 Los puertos están cerrados para modificación, los adaptadores abiertos para extensión.
@@ -205,6 +260,12 @@ Interfaces pequeñas y enfocadas:
 - `UpdateSeriesUseCase`
 - `DeleteSeriesUseCase`
 - `SearchSeriesUseCase`
+- `NotificationUseCase`
+- `CheckUpcomingEpisodesUseCase`
+
+`AuthService` es la excepción deliberada — no tiene puerto `in` propio
+porque solo lo consume `AuthController` y no hay una segunda implementación
+previsible; se evitó la interfaz "por las dudas".
 
 ### D — Dependency Inversion
 Siempre depender de interfaces (puertos), nunca de implementaciones concretas.
@@ -216,19 +277,19 @@ Siempre depender de interfaces (puertos), nunca de implementaciones concretas.
 ### Clases
 ```
 # Dominio
-Series.java                   → modelo de dominio
+UserSeries.java                → modelo de dominio persistido
 CreateSeriesUseCase.java       → puerto de entrada
-SeriesRepository.java          → puerto de salida
+UserSeriesRepository.java      → puerto de salida
 TmdbClient.java                → puerto cliente externo
 
 # Aplicación
 SeriesService.java             → implementa casos de uso
 
 # Infraestructura
-SeriesController.java          → REST controller
-SeriesRepositoryAdapter.java   → implementa puerto de BD
-SeriesEntity.java              → entidad JPA
-SeriesMapper.java              → mapper entre capas
+SeriesController.java              → REST controller
+UserSeriesRepositoryAdapter.java   → implementa puerto de BD
+UserSeriesEntity.java              → entidad JPA
+UserSeriesMapper.java              → mapper entre capas
 
 # DTOs
 CreateSeriesRequest.java       → [Accion][Entidad]Request
@@ -256,8 +317,8 @@ hasNextEpisode(Long seriesId)
 ### Base de Datos
 ```
 snake_case siempre
-users, user_series, series_cache
-user_id, tmdb_id, watched_episodes, created_at
+users, user_series, notifications
+user_id, tmdb_id, watched_episodes, created_at, version
 ```
 
 ### Commits
@@ -386,19 +447,24 @@ Configurado en `src/main/resources/logback-spring.xml`.
 
 ## Estructura de Tests
 
+105 tests en total. Ver el desglose completo en
+[`seritracker-api/README.md`](./README.md#estructura-de-tests) — acá solo
+el resumen por capa:
+
 ```
 src/test/java/com/seritracker/
-├── domain/
-│   └── model/
-│       └── SeriesTest.java              ← dominio puro
-├── application/
-│   └── service/
-│       └── SeriesServiceTest.java       ← unitarios con mocks
+├── application/service/     ← unitarios con mocks (SeriesService, AuthService)
+├── domain/exception/        ← dominio puro
+├── integration/
+│   └── PostgresIntegrationTest.java   ← Flyway + JPA contra Postgres real
 └── infrastructure/
-    ├── adapter/in/rest/
-    │   └── SeriesControllerTest.java    ← integración
-    └── adapter/out/persistence/
-        └── SeriesRepositoryTest.java    ← repositorio
+    ├── adapter/in/rest/      ← MockMvc — controllers, DTOs, paginación
+    ├── adapter/out/persistence/
+    │   ├── UserSeriesRepositoryAdapterTest.java   ← H2
+    │   └── UserSeriesOptimisticLockingTest.java   ← Postgres real, concurrencia
+    ├── adapter/out/tmdb/     ← MockWebServer, sin llamadas reales a TMDB
+    ├── security/             ← JWT, filtros, rate limiting
+    └── logging/
 ```
 
 ### Patrón AAA
@@ -417,7 +483,9 @@ void should[Resultado]_when[Condicion]() {
 | JUnit 5 | Framework base |
 | Mockito | Mocking de dependencias |
 | AssertJ | Assertions fluidas |
-| H2 | Tests de repositorio sin PostgreSQL |
+| H2 | Tests de repositorio livianos, sin PostgreSQL |
+| [`embedded-postgres`](https://github.com/zonkyio/embedded-postgres) | Postgres real embebido para Flyway y locking optimista — no requiere Docker |
+| MockWebServer (OkHttp) | Simula la API de TMDB sin red real |
 
 ---
 
@@ -435,4 +503,7 @@ void should[Resultado]_when[Condicion]() {
 ✅ ¿Los logs no contienen passwords, tokens ni datos personales?
 ✅ ¿Se usó el nivel de log correcto según la tabla de niveles?
 ✅ ¿Los mensajes de log incluyen contexto (userId, id, tmdbId)?
+✅ ¿El userId sale de @AuthenticationPrincipal, nunca de @RequestParam o la URL?
+✅ ¿Un secreto o credencial nuevo tiene default inseguro en application.yaml? (no debería)
+✅ ¿Un endpoint nuevo que devuelve listas está paginado?
 ```
