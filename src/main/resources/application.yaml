@@ -49,6 +49,9 @@ mail:
 password-reset:
   expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:60}
 
+refresh-token:
+  expiration-days: ${REFRESH_TOKEN_EXPIRATION_DAYS:30}
+
 login:
   rate-limit:
     max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
@@ -71,7 +74,7 @@ tmdb:
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:86400000}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:900000}
 
 logging:
   level:

@@ -4,6 +4,7 @@ import com.seritracker.application.service.AuthService;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.ApiResponse;
@@ -59,5 +60,18 @@ public class AuthController {
     public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ApiResponse.noContent("Password reset successfully");
+    }
+
+    @Operation(summary = "Renovar el access token usando un refresh token")
+    @PostMapping("/refresh")
+    public ApiResponse<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ApiResponse.ok(authService.refresh(request));
+    }
+
+    @Operation(summary = "Cerrar sesión, invalidando el refresh token")
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request);
+        return ApiResponse.noContent("Logged out");
     }
 }

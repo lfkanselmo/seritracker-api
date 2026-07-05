@@ -20,7 +20,7 @@ class JwtServiceTest {
     void setUp() {
         jwtService = new JwtService();
         ReflectionTestUtils.setField(jwtService, "secret",     TEST_SECRET);
-        ReflectionTestUtils.setField(jwtService, "expiration", TEST_EXPIRATION);
+        ReflectionTestUtils.setField(jwtService, "accessExpiration", TEST_EXPIRATION);
     }
 
     @Test
@@ -70,7 +70,7 @@ class JwtServiceTest {
     void shouldReturnFalse_forExpiredToken() {
         JwtService expiredService = new JwtService();
         ReflectionTestUtils.setField(expiredService, "secret",     TEST_SECRET);
-        ReflectionTestUtils.setField(expiredService, "expiration", -1000L);
+        ReflectionTestUtils.setField(expiredService, "accessExpiration", -1000L);
 
         String expiredToken = expiredService.generateToken(1L, "user@test.com", "USER");
         assertThat(expiredService.isTokenValid(expiredToken)).isFalse();

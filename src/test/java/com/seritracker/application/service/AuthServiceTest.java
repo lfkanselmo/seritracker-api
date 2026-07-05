@@ -1,14 +1,18 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
 import com.seritracker.domain.model.PasswordResetToken;
+import com.seritracker.domain.model.RefreshToken;
 import com.seritracker.domain.model.User;
 import com.seritracker.domain.port.out.EmailSender;
 import com.seritracker.domain.port.out.PasswordResetTokenRepository;
+import com.seritracker.domain.port.out.RefreshTokenRepository;
 import com.seritracker.domain.port.out.UserRepository;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
@@ -42,6 +46,7 @@ class AuthServiceTest {
     @Mock private JwtService jwtService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
+    @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private EmailSender emailSender;
 
     @InjectMocks private AuthService authService;
@@ -50,6 +55,7 @@ class AuthServiceTest {
     void setUpConfig() {
         ReflectionTestUtils.setField(authService, "appBaseUrl", "http://localhost:4200");
         ReflectionTestUtils.setField(authService, "resetExpirationMinutes", 60L);
+        ReflectionTestUtils.setField(authService, "refreshTokenExpirationDays", 30L);
     }
 
     // ── Factories ──────────────────────────────────────────────────────
@@ -95,7 +101,8 @@ class AuthServiceTest {
 
             // Assert
             assertThat(result).isNotNull();
-            assertThat(result.getToken()).isEqualTo("jwt_token");
+            assertThat(result.getAccessToken()).isEqualTo("jwt_token");
+            assertThat(result.getRefreshToken()).isNotBlank();
             assertThat(result.getUserId()).isEqualTo(1L);
             assertThat(result.getName()).isEqualTo("Test User");
             verify(userRepository).save(any());
@@ -158,7 +165,8 @@ class AuthServiceTest {
 
             // Assert
             assertThat(result).isNotNull();
-            assertThat(result.getToken()).isEqualTo("jwt_token");
+            assertThat(result.getAccessToken()).isEqualTo("jwt_token");
+            assertThat(result.getRefreshToken()).isNotBlank();
             assertThat(result.getUserId()).isEqualTo(1L);
         }
 
@@ -216,6 +224,7 @@ class AuthServiceTest {
 
             // Assert
             verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
+            verify(refreshTokenRepository).deleteAllByUserId(1L);
         }
 
         @Test
@@ -321,6 +330,7 @@ class AuthServiceTest {
             // Assert
             verify(userRepository).save(argThat(saved -> "new_hashed_password".equals(saved.getPasswordHash())));
             verify(passwordResetTokenRepository).deleteById(10L);
+            verify(refreshTokenRepository).deleteAllByUserId(1L);
         }
 
         @Test
@@ -345,6 +355,80 @@ class AuthServiceTest {
 
             verify(passwordResetTokenRepository).deleteById(10L);
             verify(userRepository, never()).save(any());
+        }
+    }
+
+    // ── refresh ────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("refresh")
+    class Refresh {
+
+        private RefreshToken buildToken(LocalDateTime expiresAt) {
+            return RefreshToken.builder()
+                    .id(20L)
+                    .userId(1L)
+                    .tokenHash("irrelevant_in_test_since_hash_is_computed_from_raw_token")
+                    .expiresAt(expiresAt)
+                    .createdAt(LocalDateTime.now().minusDays(1))
+                    .build();
+        }
+
+        @Test
+        @DisplayName("should rotate the token and return a new access/refresh pair when valid")
+        void shouldRotateToken_whenValid() {
+            // Arrange
+            RefreshToken token = buildToken(LocalDateTime.now().plusDays(10));
+            User user = buildUser();
+
+            when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+            when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+            when(jwtService.generateToken(user.getId(), user.getEmail(), user.getRole())).thenReturn("new_jwt_token");
+
+            // Act
+            AuthResponse result = authService.refresh(new RefreshTokenRequest("raw-refresh-token"));
+
+            // Assert
+            assertThat(result.getAccessToken()).isEqualTo("new_jwt_token");
+            assertThat(result.getRefreshToken()).isNotBlank();
+            verify(refreshTokenRepository).deleteByTokenHash(token.getTokenHash());
+            verify(refreshTokenRepository).save(any());
+        }
+
+        @Test
+        @DisplayName("should throw InvalidRefreshTokenException when the token does not exist")
+        void shouldThrowInvalidRefreshTokenException_whenTokenDoesNotExist() {
+            when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.refresh(new RefreshTokenRequest("bad-token")))
+                    .isInstanceOf(InvalidRefreshTokenException.class);
+        }
+
+        @Test
+        @DisplayName("should throw InvalidRefreshTokenException and delete the token when it is expired")
+        void shouldThrowInvalidRefreshTokenException_whenTokenIsExpired() {
+            RefreshToken token = buildToken(LocalDateTime.now().minusDays(1));
+            when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(token));
+
+            assertThatThrownBy(() -> authService.refresh(new RefreshTokenRequest("expired-token")))
+                    .isInstanceOf(InvalidRefreshTokenException.class);
+
+            verify(refreshTokenRepository).deleteByTokenHash(token.getTokenHash());
+        }
+    }
+
+    // ── logout ─────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("logout")
+    class Logout {
+
+        @Test
+        @DisplayName("should revoke the given refresh token")
+        void shouldRevokeRefreshToken() {
+            authService.logout(new RefreshTokenRequest("raw-refresh-token"));
+
+            verify(refreshTokenRepository).deleteByTokenHash(anyString());
         }
     }
 }

@@ -2,6 +2,7 @@ package com.seritracker.infrastructure.config;
 
 import com.seritracker.infrastructure.security.ForgotPasswordRateLimitFilter;
 import com.seritracker.infrastructure.security.JwtAuthFilter;
+import com.seritracker.infrastructure.security.JwtAuthenticationEntryPoint;
 import com.seritracker.infrastructure.security.LoginRateLimitFilter;
 import com.seritracker.infrastructure.security.RegisterRateLimitFilter;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final LoginRateLimitFilter loginRateLimitFilter;
     private final RegisterRateLimitFilter registerRateLimitFilter;
     private final ForgotPasswordRateLimitFilter forgotPasswordRateLimitFilter;
@@ -42,6 +44,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/swagger-ui/**",
@@ -55,6 +59,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout",
                                 "/api/v1/tmdb/**"
                         ).permitAll()
                         .anyRequest().authenticated()

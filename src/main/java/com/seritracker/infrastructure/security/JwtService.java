@@ -19,8 +19,8 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration}")
-    private long expiration;
+    @Value("${jwt.access-expiration}")
+    private long accessExpiration;
 
     public String generateToken(Long userId, String email, String role) {
         return Jwts.builder()
@@ -28,7 +28,7 @@ public class JwtService {
                 .claim(CLAIM_USER_ID, userId)
                 .claim(CLAIM_ROLE, role)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .expiration(new Date(System.currentTimeMillis() + accessExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }

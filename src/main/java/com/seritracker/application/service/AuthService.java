@@ -1,14 +1,18 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
 import com.seritracker.domain.model.PasswordResetToken;
+import com.seritracker.domain.model.RefreshToken;
 import com.seritracker.domain.model.User;
 import com.seritracker.domain.port.out.EmailSender;
 import com.seritracker.domain.port.out.PasswordResetTokenRepository;
+import com.seritracker.domain.port.out.RefreshTokenRepository;
 import com.seritracker.domain.port.out.UserRepository;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
@@ -40,6 +44,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final EmailSender emailSender;
 
     @Value("${app.base-url}")
@@ -47,6 +52,9 @@ public class AuthService {
 
     @Value("${password-reset.expiration-minutes}")
     private long resetExpirationMinutes;
+
+    @Value("${refresh-token.expiration-days}")
+    private long refreshTokenExpirationDays;
 
     public AuthResponse register(RegisterRequest request) {
         log.info("Registering new user");
@@ -66,13 +74,7 @@ public class AuthService {
         User saved = userRepository.save(user);
         log.info("User id={} registered successfully", saved.getId());
 
-        String token = jwtService.generateToken(saved.getId(), saved.getEmail(), saved.getRole());
-        return AuthResponse.builder()
-                .token(token)
-                .email(saved.getEmail())
-                .name(saved.getName())
-                .userId(saved.getId())
-                .build();
+        return buildAuthResponse(saved);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -90,14 +92,34 @@ public class AuthService {
         }
 
         log.info("User id={} logged in successfully", user.getId());
-        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+        return buildAuthResponse(user);
+    }
 
-        return AuthResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .name(user.getName())
-                .userId(user.getId())
-                .build();
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        log.info("Attempting token refresh");
+
+        RefreshToken token = refreshTokenRepository.findByTokenHash(hash(request.getRefreshToken()))
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.deleteByTokenHash(token.getTokenHash());
+            log.warn("Token refresh failed — refresh token expired for userId={}", token.getUserId());
+            throw new InvalidRefreshTokenException();
+        }
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(InvalidRefreshTokenException::new);
+
+        // Rotación: el refresh token usado queda inválido, se emite uno nuevo.
+        refreshTokenRepository.deleteByTokenHash(token.getTokenHash());
+
+        log.info("Token refreshed successfully for userId={}", user.getId());
+        return buildAuthResponse(user);
+    }
+
+    public void logout(RefreshTokenRequest request) {
+        refreshTokenRepository.deleteByTokenHash(hash(request.getRefreshToken()));
+        log.info("Logout — refresh token revoked");
     }
 
     public void changePassword(Long userId, ChangePasswordRequest request) {
@@ -112,7 +134,8 @@ public class AuthService {
         }
 
         userRepository.save(user.withPasswordHash(passwordEncoder.encode(request.getNewPassword())));
-        log.info("Password changed successfully for userId={}", userId);
+        refreshTokenRepository.deleteAllByUserId(userId);
+        log.info("Password changed successfully for userId={} — all sessions revoked", userId);
     }
 
     public void forgotPassword(ForgotPasswordRequest request) {
@@ -165,8 +188,33 @@ public class AuthService {
 
         userRepository.save(user.withPasswordHash(passwordEncoder.encode(request.getNewPassword())));
         passwordResetTokenRepository.deleteById(token.getId());
+        refreshTokenRepository.deleteAllByUserId(user.getId());
 
-        log.info("Password reset successfully for userId={}", user.getId());
+        log.info("Password reset successfully for userId={} — all sessions revoked", user.getId());
+    }
+
+    private AuthResponse buildAuthResponse(User user) {
+        String accessToken = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+        String refreshToken = createRefreshToken(user.getId());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .email(user.getEmail())
+                .name(user.getName())
+                .userId(user.getId())
+                .build();
+    }
+
+    private String createRefreshToken(Long userId) {
+        String rawToken = generateRawToken();
+        RefreshToken refreshToken = RefreshToken.builder()
+                .userId(userId)
+                .tokenHash(hash(rawToken))
+                .expiresAt(LocalDateTime.now().plusDays(refreshTokenExpirationDays))
+                .build();
+        refreshTokenRepository.save(refreshToken);
+        return rawToken;
     }
 
     private String generateRawToken() {

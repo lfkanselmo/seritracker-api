@@ -2,10 +2,12 @@ package com.seritracker.infrastructure.adapter.in.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seritracker.application.service.AuthService;
+import com.seritracker.domain.exception.InvalidRefreshTokenException;
 import com.seritracker.domain.exception.InvalidResetTokenException;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ChangePasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ForgotPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.LoginRequest;
+import com.seritracker.infrastructure.adapter.in.rest.dto.request.RefreshTokenRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.RegisterRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.request.ResetPasswordRequest;
 import com.seritracker.infrastructure.adapter.in.rest.dto.response.AuthResponse;
@@ -69,7 +71,8 @@ class AuthControllerTest {
 
     private AuthResponse buildAuthResponse() {
         return AuthResponse.builder()
-                .token("jwt_token")
+                .accessToken("jwt_token")
+                .refreshToken("refresh_token")
                 .email("user@test.com")
                 .name("Test User")
                 .userId(1L)
@@ -93,7 +96,7 @@ class AuthControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data.token").value("jwt_token"))
+                    .andExpect(jsonPath("$.data.accessToken").value("jwt_token"))
                     .andExpect(jsonPath("$.data.userId").value(1));
         }
 
@@ -156,7 +159,7 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.token").value("jwt_token"));
+                    .andExpect(jsonPath("$.data.accessToken").value("jwt_token"));
         }
 
         @Test
@@ -301,6 +304,68 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"token\":\"some-token\",\"newPassword\":\"123\"}"))
                     .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── POST /api/v1/auth/refresh ───────────────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/refresh")
+    class Refresh {
+
+        @Test
+        @DisplayName("should return 200 with a new token pair when the refresh token is valid")
+        void shouldReturn200_whenRefreshTokenIsValid() throws Exception {
+            RefreshTokenRequest request = new RefreshTokenRequest("valid-refresh-token");
+            when(authService.refresh(any())).thenReturn(buildAuthResponse());
+
+            mockMvc.perform(post("/api/v1/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.accessToken").value("jwt_token"))
+                    .andExpect(jsonPath("$.data.refreshToken").value("refresh_token"));
+        }
+
+        @Test
+        @DisplayName("should return 401 when the refresh token is invalid or expired")
+        void shouldReturn401_whenRefreshTokenIsInvalid() throws Exception {
+            RefreshTokenRequest request = new RefreshTokenRequest("bad-token");
+            doThrow(new InvalidRefreshTokenException()).when(authService).refresh(any());
+
+            mockMvc.perform(post("/api/v1/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.message").value("Invalid or expired refresh token"));
+        }
+
+        @Test
+        @DisplayName("should return 400 when the refresh token is blank")
+        void shouldReturn400_whenRefreshTokenIsBlank() throws Exception {
+            mockMvc.perform(post("/api/v1/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"refreshToken\":\"\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ── POST /api/v1/auth/logout ────────────────────────────────────────
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/logout")
+    class Logout {
+
+        @Test
+        @DisplayName("should return 200 when the refresh token is revoked")
+        void shouldReturn200_whenLoggingOut() throws Exception {
+            RefreshTokenRequest request = new RefreshTokenRequest("some-refresh-token");
+
+            mockMvc.perform(post("/api/v1/auth/logout")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
         }
     }
 }
