@@ -2,6 +2,7 @@ package com.seritracker.infrastructure.adapter.out.persistence;
 
 import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.SeriesStatus;
+import com.seritracker.domain.model.SortDirection;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.infrastructure.adapter.out.persistence.entity.UserSeriesEntity;
 import com.seritracker.infrastructure.adapter.out.persistence.mapper.UserSeriesMapper;
@@ -12,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -113,6 +115,61 @@ class UserSeriesRepositoryAdapterTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("findAllByUserId should filter by title when search is provided")
+    void findAllByUserId_shouldFilterByTitle_whenSearchIsProvided() {
+        UserSeriesEntity entity = buildEntity(1L);
+        UserSeries domain = buildDomain(1L);
+        org.springframework.data.domain.PageRequest springPageable =
+                org.springframework.data.domain.PageRequest.of(0, 20);
+
+        when(jpaRepository.findAllByUserIdAndTitleContainingIgnoreCase(1L, "breaking", springPageable))
+                .thenReturn(new PageImpl<>(List.of(entity), springPageable, 1));
+        when(mapper.toDomain(entity)).thenReturn(domain);
+
+        PageResult<UserSeries> result = adapter.findAllByUserId(
+                1L, com.seritracker.domain.model.PageRequest.of(0, 20, "breaking", null, null));
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(jpaRepository, never()).findAllByUserId(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("findAllByUserId should sort when sortBy is provided")
+    void findAllByUserId_shouldSort_whenSortByIsProvided() {
+        UserSeriesEntity entity = buildEntity(1L);
+        UserSeries domain = buildDomain(1L);
+        org.springframework.data.domain.PageRequest springPageable =
+                org.springframework.data.domain.PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "title"));
+
+        when(jpaRepository.findAllByUserId(1L, springPageable))
+                .thenReturn(new PageImpl<>(List.of(entity), springPageable, 1));
+        when(mapper.toDomain(entity)).thenReturn(domain);
+
+        PageResult<UserSeries> result = adapter.findAllByUserId(
+                1L, com.seritracker.domain.model.PageRequest.of(0, 20, null, "title", SortDirection.ASC));
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("findByUserIdAndStatus should filter by title when search is provided")
+    void findByUserIdAndStatus_shouldFilterByTitle_whenSearchIsProvided() {
+        UserSeriesEntity entity = buildEntity(1L);
+        UserSeries domain = buildDomain(1L);
+        org.springframework.data.domain.PageRequest springPageable =
+                org.springframework.data.domain.PageRequest.of(0, 20);
+
+        when(jpaRepository.findByUserIdAndStatusAndTitleContainingIgnoreCase(1L, "WATCHING", "breaking", springPageable))
+                .thenReturn(new PageImpl<>(List.of(entity), springPageable, 1));
+        when(mapper.toDomain(entity)).thenReturn(domain);
+
+        PageResult<UserSeries> result = adapter.findByUserIdAndStatus(
+                1L, SeriesStatus.WATCHING, com.seritracker.domain.model.PageRequest.of(0, 20, "breaking", null, null));
+
+        assertThat(result.getContent()).hasSize(1);
     }
 
     @Test

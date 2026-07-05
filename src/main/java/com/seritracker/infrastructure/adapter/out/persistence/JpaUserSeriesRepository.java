@@ -9,7 +9,9 @@ import java.util.List;
 
 public interface JpaUserSeriesRepository extends JpaRepository<UserSeriesEntity, Long> {
     Page<UserSeriesEntity> findAllByUserId(Long userId, Pageable pageable);
+    Page<UserSeriesEntity> findAllByUserIdAndTitleContainingIgnoreCase(Long userId, String search, Pageable pageable);
     List<UserSeriesEntity> findByUserIdAndStatus(Long userId, String status);
     Page<UserSeriesEntity> findByUserIdAndStatus(Long userId, String status, Pageable pageable);
+    Page<UserSeriesEntity> findByUserIdAndStatusAndTitleContainingIgnoreCase(Long userId, String status, String search, Pageable pageable);
     boolean existsByUserIdAndTmdbId(Long userId, Integer tmdbId);
 }

@@ -6,6 +6,7 @@ import com.seritracker.domain.exception.SeriesNotFoundException;
 import com.seritracker.domain.model.PageRequest;
 import com.seritracker.domain.model.PageResult;
 import com.seritracker.domain.model.SeriesStatus;
+import com.seritracker.domain.model.SortDirection;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
 import com.seritracker.domain.port.in.DeleteSeriesUseCase;
@@ -131,6 +132,42 @@ class SeriesControllerTest {
         void shouldReturn400_whenStatusQueryParamIsInvalid() throws Exception {
             mockMvc.perform(get("/api/v1/series")
                             .param("status", "NOT_A_STATUS"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false));
+        }
+
+        @Test
+        @DisplayName("should pass search through when provided")
+        void shouldPassSearchThrough_whenProvided() throws Exception {
+            List<UserSeries> content = List.of(buildUserSeries(1L, SeriesStatus.WATCHING));
+            when(searchSeriesUseCase.listAllByUser(1L, PageRequest.of(0, 20, "breaking", null, null)))
+                    .thenReturn(new PageResult<>(content, 0, 20, 1, 1));
+
+            mockMvc.perform(get("/api/v1/series")
+                            .param("search", "breaking"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[0].title").value("Breaking Bad"));
+        }
+
+        @Test
+        @DisplayName("should pass sortBy and sortDir through when provided")
+        void shouldPassSort_whenProvided() throws Exception {
+            List<UserSeries> content = List.of(buildUserSeries(1L, SeriesStatus.WATCHING));
+            when(searchSeriesUseCase.listAllByUser(1L, PageRequest.of(0, 20, null, "title", SortDirection.ASC)))
+                    .thenReturn(new PageResult<>(content, 0, 20, 1, 1));
+
+            mockMvc.perform(get("/api/v1/series")
+                            .param("sortBy", "TITLE")
+                            .param("sortDir", "ASC"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[0].title").value("Breaking Bad"));
+        }
+
+        @Test
+        @DisplayName("should return 400 when sortBy query param is invalid")
+        void shouldReturn400_whenSortByQueryParamIsInvalid() throws Exception {
+            mockMvc.perform(get("/api/v1/series")
+                            .param("sortBy", "NOT_A_FIELD"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.success").value(false));
         }

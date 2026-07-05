@@ -4,7 +4,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.seritracker.domain.model.PageRequest;
 import com.seritracker.domain.model.PageResult;
+import com.seritracker.domain.model.SeriesSortBy;
 import com.seritracker.domain.model.SeriesStatus;
+import com.seritracker.domain.model.SortDirection;
 import com.seritracker.domain.model.UserSeries;
 import com.seritracker.domain.port.in.CreateSeriesUseCase;
 import com.seritracker.domain.port.in.DeleteSeriesUseCase;
@@ -41,16 +43,23 @@ public class SeriesController {
     private final DeleteSeriesUseCase deleteSeriesUseCase;
     private final SearchSeriesUseCase searchSeriesUseCase;
 
-    @Operation(summary = "Listar las series del usuario (paginado)")
+    @Operation(summary = "Listar las series del usuario (paginado, con búsqueda y orden opcionales)")
     @GetMapping
     public ApiResponse<PageResponse<SeriesResponse>> listAll(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) SeriesStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) SeriesSortBy sortBy,
+            @RequestParam(required = false, defaultValue = "DESC") SortDirection sortDir,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
 
         Long userId = principal.getId();
-        PageRequest pageRequest = PageRequest.of(page, size);
+        PageRequest pageRequest = PageRequest.of(
+                page, size, search,
+                sortBy != null ? sortBy.getFieldName() : null,
+                sortBy != null ? sortDir : null
+        );
         PageResult<UserSeries> result = (status != null)
                 ? searchSeriesUseCase.listByStatus(userId, status, pageRequest)
                 : searchSeriesUseCase.listAllByUser(userId, pageRequest);
