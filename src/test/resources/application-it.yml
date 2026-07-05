@@ -5,4 +5,13 @@ tmdb:
 
 jwt:
   secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
-  expiration: 86400000
+  access-expiration: 900000
+
+app:
+  base-url: http://localhost:4200
+
+password-reset:
+  expiration-minutes: 60
+
+refresh-token:
+  expiration-days: 30
