@@ -121,6 +121,7 @@ public class TmdbClientAdapter implements TmdbClient {
                 .nextAirDate(nextEpisode != null ? parseAirDate(nextEpisode.getAirDate()) : null)
                 .nextEpisodeSeasonNumber(nextEpisode != null ? nextEpisode.getSeasonNumber() : null)
                 .nextEpisodeNumber(nextEpisode != null ? nextEpisode.getEpisodeNumber() : null)
+                .nextEpisodeTitle(nextEpisode != null ? nextEpisode.getName() : null)
                 .build();
     }
 

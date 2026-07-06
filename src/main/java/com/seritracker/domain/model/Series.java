@@ -18,5 +18,6 @@ public class Series {
     LocalDate nextAirDate;
     Integer nextEpisodeSeasonNumber;
     Integer nextEpisodeNumber;
+    String nextEpisodeTitle;
     List<SeasonSummary> seasons;
 }
