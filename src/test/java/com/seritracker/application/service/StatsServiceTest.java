@@ -1,5 +1,7 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.model.Badge;
+import com.seritracker.domain.model.BadgeCode;
 import com.seritracker.domain.model.EpisodeWatch;
 import com.seritracker.domain.model.Series;
 import com.seritracker.domain.model.SeriesStatus;
@@ -201,6 +203,71 @@ class StatsServiceTest {
             UserStats result = statsService.getStats(1L);
 
             assertThat(result.getCurrentYear().getLongestStreakDays()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("should compute an active current streak ending today")
+        void shouldComputeCurrentStreak_endingToday() {
+            UserSeries series = buildSeries(1L, 1396, "Breaking Bad", SeriesStatus.WATCHING);
+            LocalDateTime today = LocalDateTime.now().withHour(12);
+
+            when(userSeriesRepository.findAllForUser(1L)).thenReturn(List.of(series));
+            when(episodeWatchRepository.findByUserSeriesId(1L)).thenReturn(List.of(
+                    buildWatch(1L, today.minusDays(2)),
+                    buildWatch(1L, today.minusDays(1)),
+                    buildWatch(1L, today)
+            ));
+            when(tmdbClient.getSeriesDetails(1396)).thenReturn(buildTmdbSeries(45, List.of("Drama")));
+
+            UserStats result = statsService.getStats(1L);
+
+            assertThat(result.getCurrentStreakDays()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("should reset the current streak to zero when the last watch was more than a day ago")
+        void shouldResetCurrentStreak_whenLastWatchIsStale() {
+            UserSeries series = buildSeries(1L, 1396, "Breaking Bad", SeriesStatus.WATCHING);
+            LocalDateTime today = LocalDateTime.now().withHour(12);
+
+            when(userSeriesRepository.findAllForUser(1L)).thenReturn(List.of(series));
+            when(episodeWatchRepository.findByUserSeriesId(1L)).thenReturn(List.of(
+                    buildWatch(1L, today.minusDays(5))
+            ));
+            when(tmdbClient.getSeriesDetails(1396)).thenReturn(buildTmdbSeries(45, List.of("Drama")));
+
+            UserStats result = statsService.getStats(1L);
+
+            assertThat(result.getCurrentStreakDays()).isZero();
+        }
+
+        @Test
+        @DisplayName("should mark badges as earned once their threshold is reached")
+        void shouldMarkBadgesAsEarned_onceThresholdIsReached() {
+            UserSeries series = buildSeries(1L, 1396, "Breaking Bad", SeriesStatus.COMPLETED);
+            List<EpisodeWatch> watches = java.util.stream.IntStream.range(0, 100)
+                    .mapToObj(i -> buildWatch(1L, LocalDateTime.now()))
+                    .toList();
+
+            when(userSeriesRepository.findAllForUser(1L)).thenReturn(List.of(series));
+            when(episodeWatchRepository.findByUserSeriesId(1L)).thenReturn(watches);
+            when(tmdbClient.getSeriesDetails(1396)).thenReturn(buildTmdbSeries(45, List.of("Drama")));
+
+            UserStats result = statsService.getStats(1L);
+
+            Badge bingeWatcher = result.getBadges().stream()
+                    .filter(b -> b.getCode() == BadgeCode.BINGE_WATCHER)
+                    .findFirst().orElseThrow();
+            Badge trueFan = result.getBadges().stream()
+                    .filter(b -> b.getCode() == BadgeCode.TRUE_FAN)
+                    .findFirst().orElseThrow();
+            Badge firstComplete = result.getBadges().stream()
+                    .filter(b -> b.getCode() == BadgeCode.FIRST_COMPLETE)
+                    .findFirst().orElseThrow();
+
+            assertThat(bingeWatcher.isEarned()).isTrue();
+            assertThat(trueFan.isEarned()).isFalse();
+            assertThat(firstComplete.isEarned()).isTrue();
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.seritracker.infrastructure.adapter.in.rest;
 
+import com.seritracker.domain.model.Badge;
+import com.seritracker.domain.model.BadgeCode;
 import com.seritracker.domain.model.GenreStat;
 import com.seritracker.domain.model.UserStats;
 import com.seritracker.domain.model.YearSummary;
@@ -61,6 +63,13 @@ class StatsControllerTest {
                 .totalMinutesWatched(5400)
                 .totalSeriesTracked(8)
                 .totalSeriesCompleted(3)
+                .currentStreakDays(5)
+                .badges(List.of(Badge.builder()
+                        .code(BadgeCode.FIRST_EPISODE)
+                        .earned(true)
+                        .progressCurrent(1)
+                        .progressTarget(1)
+                        .build()))
                 .currentYear(YearSummary.builder()
                         .year(2026)
                         .episodesWatched(40)
@@ -87,7 +96,10 @@ class StatsControllerTest {
                     .andExpect(jsonPath("$.data.totalEpisodesWatched").value(120))
                     .andExpect(jsonPath("$.data.totalMinutesWatched").value(5400))
                     .andExpect(jsonPath("$.data.currentYear.mostWatchedSeriesTitle").value("Breaking Bad"))
-                    .andExpect(jsonPath("$.data.currentYear.topGenres[0].genre").value("Drama"));
+                    .andExpect(jsonPath("$.data.currentYear.topGenres[0].genre").value("Drama"))
+                    .andExpect(jsonPath("$.data.currentStreakDays").value(5))
+                    .andExpect(jsonPath("$.data.badges[0].code").value("FIRST_EPISODE"))
+                    .andExpect(jsonPath("$.data.badges[0].earned").value(true));
         }
     }
 }

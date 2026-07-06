@@ -1,5 +1,7 @@
 package com.seritracker.application.service;
 
+import com.seritracker.domain.model.Badge;
+import com.seritracker.domain.model.BadgeCode;
 import com.seritracker.domain.model.EpisodeWatch;
 import com.seritracker.domain.model.GenreStat;
 import com.seritracker.domain.model.Series;
@@ -17,9 +19,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 
 @Slf4j
@@ -45,17 +49,24 @@ public class StatsService implements StatsUseCase {
         int mostWatchedSeriesEpisodeCount = 0;
         Map<String, Integer> genreCountsThisYear = new LinkedHashMap<>();
         TreeSet<LocalDate> watchDatesThisYear = new TreeSet<>();
+        TreeSet<LocalDate> allWatchDates = new TreeSet<>();
+        Set<String> allGenresWatched = new HashSet<>();
 
         for (UserSeries series : allSeries) {
             List<EpisodeWatch> watches = episodeWatchRepository.findByUserSeriesId(series.getId());
             if (watches.isEmpty()) continue;
 
             totalEpisodesWatched += watches.size();
+            watches.forEach(w -> allWatchDates.add(w.getWatchedAt().toLocalDate()));
 
             Series tmdbData = fetchTmdbDataSafely(series);
 
             if (tmdbData != null && tmdbData.getEpisodeRuntimeMinutes() != null) {
                 totalMinutesWatched += (long) watches.size() * tmdbData.getEpisodeRuntimeMinutes();
+            }
+
+            if (tmdbData != null) {
+                allGenresWatched.addAll(tmdbData.getGenres());
             }
 
             List<EpisodeWatch> watchesThisYear = watches.stream()
@@ -79,6 +90,9 @@ public class StatsService implements StatsUseCase {
             }
         }
 
+        int totalSeriesCompleted = (int) allSeries.stream().filter(s -> s.getStatus() == SeriesStatus.COMPLETED).count();
+        int currentStreakDays = currentStreak(allWatchDates);
+
         YearSummary currentYearSummary = YearSummary.builder()
                 .year(currentYear)
                 .episodesWatched(episodesWatchedThisYear)
@@ -92,7 +106,9 @@ public class StatsService implements StatsUseCase {
                 .totalEpisodesWatched(totalEpisodesWatched)
                 .totalMinutesWatched(totalMinutesWatched)
                 .totalSeriesTracked(allSeries.size())
-                .totalSeriesCompleted((int) allSeries.stream().filter(s -> s.getStatus() == SeriesStatus.COMPLETED).count())
+                .totalSeriesCompleted(totalSeriesCompleted)
+                .currentStreakDays(currentStreakDays)
+                .badges(computeBadges(totalEpisodesWatched, totalSeriesCompleted, currentStreakDays, allGenresWatched.size()))
                 .currentYear(currentYearSummary)
                 .build();
     }
@@ -131,5 +147,49 @@ public class StatsService implements StatsUseCase {
         }
 
         return longest;
+    }
+
+    /**
+     * Racha activa hasta hoy — se corta si el último día visto no fue hoy ni ayer,
+     * a diferencia de longestStreak() que busca el máximo histórico dentro de un rango.
+     */
+    private int currentStreak(TreeSet<LocalDate> allWatchDates) {
+        if (allWatchDates.isEmpty()) return 0;
+
+        LocalDate mostRecent = allWatchDates.last();
+        LocalDate today = LocalDate.now();
+        if (mostRecent.isBefore(today.minusDays(1))) return 0;
+
+        int streak = 1;
+        LocalDate cursor = mostRecent;
+        while (allWatchDates.contains(cursor.minusDays(1))) {
+            streak++;
+            cursor = cursor.minusDays(1);
+        }
+
+        return streak;
+    }
+
+    private List<Badge> computeBadges(int totalEpisodesWatched, int totalSeriesCompleted,
+                                       int currentStreakDays, int distinctGenresWatched) {
+        return List.of(
+                badge(BadgeCode.FIRST_EPISODE, totalEpisodesWatched, 1),
+                badge(BadgeCode.BINGE_WATCHER, totalEpisodesWatched, 100),
+                badge(BadgeCode.TRUE_FAN, totalEpisodesWatched, 500),
+                badge(BadgeCode.FIRST_COMPLETE, totalSeriesCompleted, 1),
+                badge(BadgeCode.COLLECTOR, totalSeriesCompleted, 5),
+                badge(BadgeCode.WEEK_STREAK, currentStreakDays, 7),
+                badge(BadgeCode.MONTH_STREAK, currentStreakDays, 30),
+                badge(BadgeCode.GENRE_EXPLORER, distinctGenresWatched, 5)
+        );
+    }
+
+    private Badge badge(BadgeCode code, int current, int target) {
+        return Badge.builder()
+                .code(code)
+                .earned(current >= target)
+                .progressCurrent(Math.min(current, target))
+                .progressTarget(target)
+                .build();
     }
 }
