@@ -15,6 +15,7 @@ public class Series {
     List<String> genres;
     String network;
     Integer totalEpisodes;
+    Integer episodeRuntimeMinutes;
     LocalDate nextAirDate;
     Integer nextEpisodeSeasonNumber;
     Integer nextEpisodeNumber;

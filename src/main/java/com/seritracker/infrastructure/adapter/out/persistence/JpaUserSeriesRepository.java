@@ -15,6 +15,7 @@ public interface JpaUserSeriesRepository extends JpaRepository<UserSeriesEntity,
     Page<UserSeriesEntity> findByUserIdAndStatus(Long userId, String status, Pageable pageable);
     Page<UserSeriesEntity> findByUserIdAndStatusAndTitleContainingIgnoreCase(Long userId, String status, String search, Pageable pageable);
     boolean existsByUserIdAndTmdbId(Long userId, Integer tmdbId);
+    List<UserSeriesEntity> findByUserId(Long userId);
 
     @Query("SELECT DISTINCT u.userId FROM UserSeriesEntity u")
     List<Long> findAllDistinctUserIds();

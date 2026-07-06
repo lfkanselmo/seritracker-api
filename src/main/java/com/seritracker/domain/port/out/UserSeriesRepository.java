@@ -17,4 +17,5 @@ public interface UserSeriesRepository {
     boolean existsByUserIdAndTmdbId(Long userId, Integer tmdbId);
     void deleteById(Long id);
     List<Long> findAllUserIds();
+    List<UserSeries> findAllForUser(Long userId);
 }

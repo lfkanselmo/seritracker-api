@@ -77,6 +77,14 @@ public class UserSeriesRepositoryAdapter implements UserSeriesRepository {
         return jpaRepository.findAllDistinctUserIds();
     }
 
+    @Override
+    public List<UserSeries> findAllForUser(Long userId) {
+        return jpaRepository.findByUserId(userId)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
     private org.springframework.data.domain.PageRequest toPageable(PageRequest pageRequest) {
         Sort sort = (pageRequest.getSortBy() != null && pageRequest.getSortDirection() != null)
                 ? Sort.by(

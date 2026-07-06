@@ -245,6 +245,71 @@ class TmdbClientAdapterTest {
     }
 
     @Test
+    @DisplayName("getSeriesDetails should map episode runtime from episode_run_time")
+    void getSeriesDetails_shouldMapEpisodeRuntime_fromEpisodeRunTime() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "episode_run_time": [47, 50],
+                      "networks": [],
+                      "genres": []
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getEpisodeRuntimeMinutes()).isEqualTo(47);
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should fall back to last_episode_to_air.runtime when episode_run_time is empty")
+    void getSeriesDetails_shouldFallBackToLastEpisodeRuntime_whenEpisodeRunTimeIsEmpty() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "episode_run_time": [],
+                      "networks": [],
+                      "genres": [],
+                      "last_episode_to_air": {
+                        "runtime": 55
+                      }
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getEpisodeRuntimeMinutes()).isEqualTo(55);
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should leave episode runtime null when no source is available")
+    void getSeriesDetails_shouldLeaveRuntimeNull_whenNoSourceAvailable() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "networks": [],
+                      "genres": []
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getEpisodeRuntimeMinutes()).isNull();
+    }
+
+    @Test
     @DisplayName("getSeasonEpisodes should return mapped episodes")
     void getSeasonEpisodes_shouldReturnMappedEpisodes() {
         mockWebServer.enqueue(new MockResponse()

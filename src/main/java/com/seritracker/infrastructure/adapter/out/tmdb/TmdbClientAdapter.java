@@ -115,6 +115,7 @@ public class TmdbClientAdapter implements TmdbClient {
                         ? imageBaseUrl + response.getPosterPath()
                         : null)
                 .totalEpisodes(Optional.ofNullable(response.getNumberOfEpisodes()).orElse(0))
+                .episodeRuntimeMinutes(resolveEpisodeRuntime(response))
                 .network(network)
                 .genres(genres)
                 .seasons(seasons)
@@ -123,6 +124,17 @@ public class TmdbClientAdapter implements TmdbClient {
                 .nextEpisodeNumber(nextEpisode != null ? nextEpisode.getEpisodeNumber() : null)
                 .nextEpisodeTitle(nextEpisode != null ? nextEpisode.getName() : null)
                 .build();
+    }
+
+    private Integer resolveEpisodeRuntime(TmdbSeriesResponse response) {
+        List<Integer> episodeRunTime = response.getEpisodeRunTime();
+        if (episodeRunTime != null && !episodeRunTime.isEmpty()) {
+            return episodeRunTime.get(0);
+        }
+
+        return Optional.ofNullable(response.getLastEpisodeToAir())
+                .map(TmdbSeriesResponse.TmdbLastEpisodeToAir::getRuntime)
+                .orElse(null);
     }
 
     @Override
