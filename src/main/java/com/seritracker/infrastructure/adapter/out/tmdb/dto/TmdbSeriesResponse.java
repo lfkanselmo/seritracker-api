@@ -26,6 +26,9 @@ public class TmdbSeriesResponse {
     @JsonProperty("seasons")
     private List<TmdbSeasonSummary> seasons;
 
+    @JsonProperty("next_episode_to_air")
+    private TmdbNextEpisodeToAir nextEpisodeToAir;
+
     @Data
     public static class TmdbNetwork {
         private String name;
@@ -45,5 +48,19 @@ public class TmdbSeriesResponse {
 
         @JsonProperty("episode_count")
         private Integer episodeCount;
+    }
+
+    @Data
+    public static class TmdbNextEpisodeToAir {
+        private String name;
+
+        @JsonProperty("air_date")
+        private String airDate;
+
+        @JsonProperty("season_number")
+        private Integer seasonNumber;
+
+        @JsonProperty("episode_number")
+        private Integer episodeNumber;
     }
 }

@@ -16,5 +16,7 @@ public class Series {
     String network;
     Integer totalEpisodes;
     LocalDate nextAirDate;
+    Integer nextEpisodeSeasonNumber;
+    Integer nextEpisodeNumber;
     List<SeasonSummary> seasons;
 }

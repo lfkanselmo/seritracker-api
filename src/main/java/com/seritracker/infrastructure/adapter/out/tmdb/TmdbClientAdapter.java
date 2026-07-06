@@ -106,6 +106,8 @@ public class TmdbClientAdapter implements TmdbClient {
                         .toList())
                 .orElse(Collections.emptyList());
 
+        TmdbSeriesResponse.TmdbNextEpisodeToAir nextEpisode = response.getNextEpisodeToAir();
+
         return Series.builder()
                 .tmdbId(response.getId())
                 .title(response.getName())
@@ -116,6 +118,9 @@ public class TmdbClientAdapter implements TmdbClient {
                 .network(network)
                 .genres(genres)
                 .seasons(seasons)
+                .nextAirDate(nextEpisode != null ? parseAirDate(nextEpisode.getAirDate()) : null)
+                .nextEpisodeSeasonNumber(nextEpisode != null ? nextEpisode.getSeasonNumber() : null)
+                .nextEpisodeNumber(nextEpisode != null ? nextEpisode.getEpisodeNumber() : null)
                 .build();
     }
 

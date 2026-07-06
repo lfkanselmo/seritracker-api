@@ -50,15 +50,18 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
         try {
             var tmdbData = tmdbClient.getSeriesDetails(series.getTmdbId());
 
-            if (tmdbData.getNextAirDate() == null) return;
-
             LocalDate nextAirDate = tmdbData.getNextAirDate();
-            LocalDate today       = LocalDate.now();
-            LocalDate tomorrow    = today.plusDays(1);
+            Integer seasonNumber = tmdbData.getNextEpisodeSeasonNumber();
+            Integer episodeNumber = tmdbData.getNextEpisodeNumber();
+
+            if (nextAirDate == null || seasonNumber == null || episodeNumber == null) return;
+
+            LocalDate today    = LocalDate.now();
+            LocalDate tomorrow = today.plusDays(1);
 
             if (!nextAirDate.equals(today) && !nextAirDate.equals(tomorrow)) return;
 
-            String episodeCode = buildEpisodeCode(series.getTmdbId());
+            String episodeCode = buildEpisodeCode(seasonNumber, episodeNumber);
 
             if (notificationRepository.existsByUserIdAndTmdbIdAndEpisodeCode(
                     userId, series.getTmdbId(), episodeCode)) return;
@@ -73,8 +76,8 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
                     .build();
 
             notificationRepository.save(notification);
-            log.info("Notification created for userId={} series='{}' airDate={}",
-                    userId, series.getTitle(), nextAirDate);
+            log.info("Notification created for userId={} series='{}' episodeCode={} airDate={}",
+                    userId, series.getTitle(), episodeCode, nextAirDate);
 
         } catch (Exception e) {
             log.error("Failed to check episodes for userId={} tmdbId={}",
@@ -82,7 +85,7 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
         }
     }
 
-    private String buildEpisodeCode(Integer tmdbId) {
-        return "tmdb-" + tmdbId + "-" + LocalDate.now();
+    private String buildEpisodeCode(Integer seasonNumber, Integer episodeNumber) {
+        return String.format("S%02dE%02d", seasonNumber, episodeNumber);
     }
 }

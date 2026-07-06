@@ -195,6 +195,56 @@ class TmdbClientAdapterTest {
     }
 
     @Test
+    @DisplayName("getSeriesDetails should map next_episode_to_air when present")
+    void getSeriesDetails_shouldMapNextEpisodeToAir_whenPresent() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "networks": [],
+                      "genres": [],
+                      "next_episode_to_air": {
+                        "name": "Felina",
+                        "air_date": "2026-08-01",
+                        "season_number": 6,
+                        "episode_number": 1
+                      }
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getNextAirDate()).isEqualTo(java.time.LocalDate.of(2026, 8, 1));
+        assertThat(result.getNextEpisodeSeasonNumber()).isEqualTo(6);
+        assertThat(result.getNextEpisodeNumber()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("getSeriesDetails should leave next-episode fields null when absent")
+    void getSeriesDetails_shouldLeaveNextEpisodeFieldsNull_whenAbsent() {
+        mockWebServer.enqueue(new MockResponse()
+                .setBody("""
+                    {
+                      "id": 1396,
+                      "name": "Breaking Bad",
+                      "number_of_episodes": 62,
+                      "networks": [],
+                      "genres": []
+                    }
+                    """)
+                .addHeader("Content-Type", "application/json"));
+
+        Series result = adapter.getSeriesDetails(1396);
+
+        assertThat(result.getNextAirDate()).isNull();
+        assertThat(result.getNextEpisodeSeasonNumber()).isNull();
+        assertThat(result.getNextEpisodeNumber()).isNull();
+    }
+
+    @Test
     @DisplayName("getSeasonEpisodes should return mapped episodes")
     void getSeasonEpisodes_shouldReturnMappedEpisodes() {
         mockWebServer.enqueue(new MockResponse()
