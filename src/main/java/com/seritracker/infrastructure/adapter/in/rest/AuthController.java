@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Auth", description = "Registro e inicio de sesión")
 public class AuthController {
 
-    // Usamos el puerto, nunca el servicio directamente
     private final AuthUseCase authUseCase;
 
     @Operation(summary = "Registrar nuevo usuario")

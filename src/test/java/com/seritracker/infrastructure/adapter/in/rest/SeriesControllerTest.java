@@ -101,8 +101,6 @@ class SeriesControllerTest {
                 .build();
     }
 
-    // ── GET /api/v1/series ─────────────────────────────────────────────
-
     @Nested
     @DisplayName("GET /api/v1/series")
     class ListAll {
@@ -180,8 +178,6 @@ class SeriesControllerTest {
         }
     }
 
-    // ── GET /api/v1/series/{id} ────────────────────────────────────────
-
     @Nested
     @DisplayName("GET /api/v1/series/{id}")
     class GetById {
@@ -208,8 +204,6 @@ class SeriesControllerTest {
                     .andExpect(jsonPath("$.success").value(false));
         }
     }
-
-    // ── POST /api/v1/series ────────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /api/v1/series")
@@ -264,8 +258,6 @@ class SeriesControllerTest {
         }
     }
 
-    // ── PATCH /api/v1/series/{id}/status ──────────────────────────────
-
     @Nested
     @DisplayName("PATCH /api/v1/series/{id}/status")
     class UpdateStatus {
@@ -284,8 +276,6 @@ class SeriesControllerTest {
                     .andExpect(jsonPath("$.data.status").value("COMPLETED"));
         }
     }
-
-    // ── PATCH /api/v1/series/{id}/rating ──────────────────────────────
 
     @Nested
     @DisplayName("PATCH /api/v1/series/{id}/rating")
@@ -314,8 +304,6 @@ class SeriesControllerTest {
         }
     }
 
-    // ── GET /api/v1/series/{id}/seasons ───────────────────────────────
-
     @Nested
     @DisplayName("GET /api/v1/series/{id}/seasons")
     class GetSeasonsSummary {
@@ -340,8 +328,6 @@ class SeriesControllerTest {
         }
     }
 
-    // ── GET /api/v1/series/{id}/seasons/{seasonNumber}/episodes ───────
-
     @Nested
     @DisplayName("GET /api/v1/series/{id}/seasons/{seasonNumber}/episodes")
     class GetSeasonEpisodes {
@@ -360,8 +346,6 @@ class SeriesControllerTest {
                     .andExpect(jsonPath("$.data.episodes[0].watched").value(true));
         }
     }
-
-    // ── PATCH /api/v1/series/{id}/seasons/{seasonNumber}/episodes/{episodeNumber} ──
 
     @Nested
     @DisplayName("PATCH /api/v1/series/{id}/seasons/{seasonNumber}/episodes/{episodeNumber}")
@@ -390,8 +374,6 @@ class SeriesControllerTest {
         }
     }
 
-    // ── PATCH /api/v1/series/{id}/seasons/{seasonNumber}/watch-all ────
-
     @Nested
     @DisplayName("PATCH /api/v1/series/{id}/seasons/{seasonNumber}/watch-all")
     class MarkSeasonWatched {
@@ -418,8 +400,6 @@ class SeriesControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── PATCH /api/v1/series/{id}/notes ───────────────────────────────
 
     @Nested
     @DisplayName("PATCH /api/v1/series/{id}/notes")
@@ -449,8 +429,6 @@ class SeriesControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── DELETE /api/v1/series/{id} ────────────────────────────────────
 
     @Nested
     @DisplayName("DELETE /api/v1/series/{id}")

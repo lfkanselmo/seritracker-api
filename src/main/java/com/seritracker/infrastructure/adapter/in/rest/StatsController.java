@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Stats", description = "Estadísticas de uso del usuario")
 public class StatsController {
 
-    // Usamos el puerto, nunca el servicio directamente
     private final StatsUseCase statsUseCase;
 
     @Operation(summary = "Obtener las estadísticas del usuario (totales y resumen del año actual)")

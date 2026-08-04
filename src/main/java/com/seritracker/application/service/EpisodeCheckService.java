@@ -37,8 +37,6 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
         log.info("Upcoming episodes check completed");
     }
 
-    // ── Métodos privados ───────────────────────────────────────────────
-
     private void checkEpisodesForUser(Long userId) {
         List<UserSeries> watchingSeries = userSeriesRepository
                 .findAllByUserIdAndStatus(userId, SeriesStatus.WATCHING);

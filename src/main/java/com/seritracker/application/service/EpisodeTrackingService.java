@@ -132,8 +132,6 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
         return refreshWatchedCount(series);
     }
 
-    // ── Métodos privados ───────────────────────────────────────────────
-
     private List<SeasonSummary> fetchSeasons(Integer tmdbId) {
         Series tmdbData = tmdbClient.getSeriesDetails(tmdbId);
         return tmdbData.getSeasons() != null ? tmdbData.getSeasons() : Collections.emptyList();

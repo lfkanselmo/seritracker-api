@@ -37,7 +37,6 @@ class UserSeriesOptimisticLockingTest {
                 .build());
         entityManager.detach(saved);
 
-        // Simula dos requests que leen la misma fila antes de que ninguna escriba
         UserSeriesEntity firstReader = repository.findById(saved.getId()).orElseThrow();
         entityManager.detach(firstReader);
         UserSeriesEntity secondReader = repository.findById(saved.getId()).orElseThrow();

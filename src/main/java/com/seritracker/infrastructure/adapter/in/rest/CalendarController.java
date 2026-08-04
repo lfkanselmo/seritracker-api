@@ -20,7 +20,6 @@ import java.util.List;
 @Tag(name = "Calendar", description = "Calendario de próximos estrenos")
 public class CalendarController {
 
-    // Usamos el puerto, nunca el servicio directamente
     private final CalendarUseCase calendarUseCase;
 
     @Operation(summary = "Obtener los próximos episodios a estrenarse de las series en 'viendo'")

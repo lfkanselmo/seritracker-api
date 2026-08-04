@@ -104,8 +104,6 @@ public class SeriesService implements
         return findOrThrow(userId, id);
     }
 
-    // ── Métodos privados ───────────────────────────────────────────────
-
     private UserSeries findOrThrow(Long userId, Long id) {
         return SeriesLookup.findOrThrow(userSeriesRepository, userId, id);
     }

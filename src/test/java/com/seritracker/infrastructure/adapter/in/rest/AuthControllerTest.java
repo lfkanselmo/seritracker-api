@@ -79,8 +79,6 @@ class AuthControllerTest {
                 .build();
     }
 
-    // ── POST /api/v1/auth/register ─────────────────────────────────────
-
     @Nested
     @DisplayName("POST /api/v1/auth/register")
     class Register {
@@ -143,8 +141,6 @@ class AuthControllerTest {
         }
     }
 
-    // ── POST /api/v1/auth/login ────────────────────────────────────────
-
     @Nested
     @DisplayName("POST /api/v1/auth/login")
     class Login {
@@ -184,8 +180,6 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── PATCH /api/v1/auth/password ────────────────────────────────────
 
     @Nested
     @DisplayName("PATCH /api/v1/auth/password")
@@ -227,8 +221,6 @@ class AuthControllerTest {
         }
     }
 
-    // ── POST /api/v1/auth/forgot-password ──────────────────────────────
-
     @Nested
     @DisplayName("POST /api/v1/auth/forgot-password")
     class ForgotPassword {
@@ -265,8 +257,6 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── POST /api/v1/auth/reset-password ───────────────────────────────
 
     @Nested
     @DisplayName("POST /api/v1/auth/reset-password")
@@ -306,8 +296,6 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── POST /api/v1/auth/refresh ───────────────────────────────────────
 
     @Nested
     @DisplayName("POST /api/v1/auth/refresh")
@@ -349,8 +337,6 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
         }
     }
-
-    // ── POST /api/v1/auth/logout ────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /api/v1/auth/logout")

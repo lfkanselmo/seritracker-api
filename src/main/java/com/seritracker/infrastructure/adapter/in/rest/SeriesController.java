@@ -45,7 +45,6 @@ import java.util.List;
 @Tag(name = "Series", description = "Gestión de series del usuario")
 public class SeriesController {
 
-    // Usamos los puertos, nunca el servicio directamente
     private final CreateSeriesUseCase createSeriesUseCase;
     private final UpdateSeriesUseCase updateSeriesUseCase;
     private final DeleteSeriesUseCase deleteSeriesUseCase;

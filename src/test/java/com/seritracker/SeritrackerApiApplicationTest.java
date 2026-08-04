@@ -13,6 +13,5 @@ class SeritrackerApiApplicationTest {
     @Test
     @DisplayName("context should load successfully")
     void contextLoads() {
-        // Si el contexto de Spring carga sin errores el test pasa
     }
 }
