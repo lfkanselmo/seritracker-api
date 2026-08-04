@@ -7,3 +7,4 @@ target
 .env.local
 *.env
 HELP.md
+*.md
