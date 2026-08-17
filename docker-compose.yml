@@ -24,7 +24,7 @@ services:
     build: ../seritracker-web
     ports: ['4200:80']
     environment:
-      API_URL: http://localhost:8080
+      API_URL: http://localhost:8080/api/v1
     depends_on:
       - api
 
