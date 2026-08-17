@@ -1,5 +1,10 @@
 # SeriesTracker API
 
+[![CI](https://github.com/lfkanselmo/seritracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/lfkanselmo/seritracker-api/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/java-21%20LTS-437291?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+
 REST API para el seguimiento de series de televisión. Construida con Java 21 y Spring Boot 3.5 siguiendo arquitectura hexagonal (Ports & Adapters).
 
 ---
@@ -35,7 +40,7 @@ REST API para el seguimiento de series de televisión. Construida con Java 21 y 
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/TuUsuario/seritracker-api.git
+git clone https://github.com/lfkanselmo/seritracker-api.git
 cd seritracker-api
 ```
 
@@ -401,4 +406,4 @@ java -jar target/seritracker-api-0.0.1-SNAPSHOT.jar \
 
 ## Proyectos Relacionados
 
-- **Frontend:** [seritracker-web](https://github.com/TuUsuario/seritracker-web) — Angular 21
+- **Frontend:** [seritracker-web](https://github.com/lfkanselmo/seritracker-web) — Angular 21
