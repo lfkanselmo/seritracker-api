@@ -84,28 +84,10 @@ public class TmdbClientAdapter implements TmdbClient {
             throw new SeriesNotFoundException(tmdbId);
         }
 
-        String network = Optional.ofNullable(response.getNetworks())
-                .filter(n -> !n.isEmpty())
-                .map(n -> n.get(0).getName())
-                .orElse(null);
+        return mapToSeries(response);
+    }
 
-        List<String> genres = Optional.ofNullable(response.getGenres())
-                .map(g -> g.stream()
-                        .map(TmdbSeriesResponse.TmdbGenre::getName)
-                        .toList())
-                .orElse(Collections.emptyList());
-
-        List<SeasonSummary> seasons = Optional.ofNullable(response.getSeasons())
-                .map(s -> s.stream()
-                        .filter(season -> season.getSeasonNumber() != null && season.getSeasonNumber() >= 1)
-                        .map(season -> SeasonSummary.builder()
-                                .seasonNumber(season.getSeasonNumber())
-                                .name(season.getName())
-                                .episodeCount(Optional.ofNullable(season.getEpisodeCount()).orElse(0))
-                                .build())
-                        .toList())
-                .orElse(Collections.emptyList());
-
+    private Series mapToSeries(TmdbSeriesResponse response) {
         TmdbSeriesResponse.TmdbNextEpisodeToAir nextEpisode = response.getNextEpisodeToAir();
 
         return Series.builder()
@@ -116,14 +98,40 @@ public class TmdbClientAdapter implements TmdbClient {
                         : null)
                 .totalEpisodes(Optional.ofNullable(response.getNumberOfEpisodes()).orElse(0))
                 .episodeRuntimeMinutes(resolveEpisodeRuntime(response))
-                .network(network)
-                .genres(genres)
-                .seasons(seasons)
+                .network(mapNetwork(response.getNetworks()))
+                .genres(mapGenres(response.getGenres()))
+                .seasons(mapSeasons(response.getSeasons()))
                 .nextAirDate(nextEpisode != null ? parseAirDate(nextEpisode.getAirDate()) : null)
                 .nextEpisodeSeasonNumber(nextEpisode != null ? nextEpisode.getSeasonNumber() : null)
                 .nextEpisodeNumber(nextEpisode != null ? nextEpisode.getEpisodeNumber() : null)
                 .nextEpisodeTitle(nextEpisode != null ? nextEpisode.getName() : null)
                 .build();
+    }
+
+    private String mapNetwork(List<TmdbSeriesResponse.TmdbNetwork> networks) {
+        return Optional.ofNullable(networks)
+                .filter(n -> !n.isEmpty())
+                .map(n -> n.get(0).getName())
+                .orElse(null);
+    }
+
+    private List<String> mapGenres(List<TmdbSeriesResponse.TmdbGenre> genres) {
+        return Optional.ofNullable(genres)
+                .map(g -> g.stream().map(TmdbSeriesResponse.TmdbGenre::getName).toList())
+                .orElse(Collections.emptyList());
+    }
+
+    private List<SeasonSummary> mapSeasons(List<TmdbSeriesResponse.TmdbSeasonSummary> seasons) {
+        return Optional.ofNullable(seasons)
+                .map(s -> s.stream()
+                        .filter(season -> season.getSeasonNumber() != null && season.getSeasonNumber() >= 1)
+                        .map(season -> SeasonSummary.builder()
+                                .seasonNumber(season.getSeasonNumber())
+                                .name(season.getName())
+                                .episodeCount(Optional.ofNullable(season.getEpisodeCount()).orElse(0))
+                                .build())
+                        .toList())
+                .orElse(Collections.emptyList());
     }
 
     private Integer resolveEpisodeRuntime(TmdbSeriesResponse response) {

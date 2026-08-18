@@ -150,6 +150,13 @@ public class AuthService implements AuthUseCase {
         }
 
         User user = maybeUser.get();
+        String rawToken = issueResetToken(user);
+        sendResetEmail(user, rawToken);
+
+        log.info("Password reset email dispatched for userId={}", user.getId());
+    }
+
+    private String issueResetToken(User user) {
         passwordResetTokenRepository.deleteByUserId(user.getId());
 
         String rawToken = generateRawToken();
@@ -159,7 +166,10 @@ public class AuthService implements AuthUseCase {
                 .expiresAt(LocalDateTime.now().plusMinutes(resetExpirationMinutes))
                 .build();
         passwordResetTokenRepository.save(token);
+        return rawToken;
+    }
 
+    private void sendResetEmail(User user, String rawToken) {
         String resetLink = appBaseUrl + "/auth/reset-password?token=" + rawToken;
         emailSender.send(
                 user.getEmail(),
@@ -168,8 +178,6 @@ public class AuthService implements AuthUseCase {
                         "Expira en " + resetExpirationMinutes + " minutos:\n\n" + resetLink +
                         "\n\nSi no pediste este cambio, ignorá este mensaje."
         );
-
-        log.info("Password reset email dispatched for userId={}", user.getId());
     }
 
     @Override

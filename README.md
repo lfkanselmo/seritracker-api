@@ -1,12 +1,12 @@
 # SeriesTracker API
 
 [![CI](https://github.com/lfkanselmo/seritracker-api/actions/workflows/ci.yml/badge.svg)](https://github.com/lfkanselmo/seritracker-api/actions/workflows/ci.yml)
-![Java](https://img.shields.io/badge/java-21%20LTS-437291?logo=openjdk&logoColor=white)
+![Java](https://img.shields.io/badge/java-25%20LTS-437291?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/license-proprietary-lightgrey)
 
-REST API para el seguimiento de series de televisión. Construida con Java 21 y Spring Boot 3.5 siguiendo arquitectura hexagonal (Ports & Adapters).
+REST API para el seguimiento de series de televisión. Construida con Java 25 y Spring Boot 3.5 siguiendo arquitectura hexagonal (Ports & Adapters).
 
 ---
 
@@ -14,7 +14,7 @@ REST API para el seguimiento de series de televisión. Construida con Java 21 y 
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Lenguaje | Java | 21 LTS |
+| Lenguaje | Java | 25 LTS |
 | Framework | Spring Boot | 3.5 |
 | Base de datos | PostgreSQL | 16 |
 | ORM | Spring Data JPA + Hibernate | — |
@@ -30,7 +30,7 @@ REST API para el seguimiento de series de televisión. Construida con Java 21 y 
 
 ## Requisitos Previos
 
-- Java 21 LTS
+- Java 25 LTS
 - Maven 3.9+
 - PostgreSQL 16
 
@@ -315,11 +315,11 @@ mvn test jacoco:report
 
 | Métrica | Resultado |
 |---------|-----------|
-| Instrucciones | 73% |
-| Branches | 72% |
-| Líneas | 75% |
-| Métodos | 74% |
-| Tests totales | 105 |
+| Instrucciones | 84% |
+| Branches | 83% |
+| Líneas | 83% |
+| Métodos | 81% |
+| Tests totales | 195 |
 
 ### Estructura de tests
 
@@ -327,7 +327,11 @@ mvn test jacoco:report
 src/test/java/com/seritracker/
 ├── application/service/
 │   ├── SeriesServiceTest.java
-│   └── AuthServiceTest.java
+│   ├── AuthServiceTest.java
+│   ├── CalendarServiceTest.java
+│   ├── EpisodeCheckServiceTest.java
+│   ├── EpisodeTrackingServiceTest.java
+│   └── StatsServiceTest.java
 ├── domain/exception/
 │   └── ExceptionTest.java
 ├── integration/
@@ -336,6 +340,8 @@ src/test/java/com/seritracker/
     ├── adapter/in/rest/
     │   ├── SeriesControllerTest.java
     │   ├── AuthControllerTest.java
+    │   ├── CalendarControllerTest.java
+    │   ├── StatsControllerTest.java
     │   ├── TmdbControllerTest.java
     │   └── dto/response/ApiResponseTest.java
     ├── adapter/out/persistence/
@@ -349,8 +355,10 @@ src/test/java/com/seritracker/
     ├── security/
     │   ├── JwtServiceTest.java
     │   ├── JwtAuthFilterTest.java
-    │   ├── LoginRateLimiterTest.java
-    │   └── LoginRateLimitFilterTest.java
+    │   ├── RateLimiterTest.java
+    │   ├── LoginRateLimitFilterTest.java
+    │   ├── RegisterRateLimitFilterTest.java
+    │   └── ForgotPasswordRateLimitFilterTest.java
     └── logging/MdcFilterTest.java
 ```
 

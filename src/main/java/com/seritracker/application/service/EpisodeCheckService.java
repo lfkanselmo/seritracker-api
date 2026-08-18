@@ -46,41 +46,44 @@ public class EpisodeCheckService implements CheckUpcomingEpisodesUseCase {
 
     private void checkSeriesForUser(Long userId, UserSeries series) {
         try {
-            var tmdbData = tmdbClient.getSeriesDetails(series.getTmdbId());
-
-            LocalDate nextAirDate = tmdbData.getNextAirDate();
-            Integer seasonNumber = tmdbData.getNextEpisodeSeasonNumber();
-            Integer episodeNumber = tmdbData.getNextEpisodeNumber();
-
-            if (nextAirDate == null || seasonNumber == null || episodeNumber == null) return;
-
-            LocalDate today    = LocalDate.now();
-            LocalDate tomorrow = today.plusDays(1);
-
-            if (!nextAirDate.equals(today) && !nextAirDate.equals(tomorrow)) return;
-
-            String episodeCode = buildEpisodeCode(seasonNumber, episodeNumber);
-
-            if (notificationRepository.existsByUserIdAndTmdbIdAndEpisodeCode(
-                    userId, series.getTmdbId(), episodeCode)) return;
-
-            Notification notification = Notification.builder()
-                    .userId(userId)
-                    .tmdbId(series.getTmdbId())
-                    .seriesTitle(series.getTitle())
-                    .episodeCode(episodeCode)
-                    .airDate(nextAirDate)
-                    .read(false)
-                    .build();
-
-            notificationRepository.save(notification);
-            log.info("Notification created for userId={} series='{}' episodeCode={} airDate={}",
-                    userId, series.getTitle(), episodeCode, nextAirDate);
-
+            evaluateAndNotify(userId, series);
         } catch (Exception e) {
             log.error("Failed to check episodes for userId={} tmdbId={}",
                     userId, series.getTmdbId(), e);
         }
+    }
+
+    private void evaluateAndNotify(Long userId, UserSeries series) {
+        var tmdbData = tmdbClient.getSeriesDetails(series.getTmdbId());
+
+        LocalDate nextAirDate = tmdbData.getNextAirDate();
+        Integer seasonNumber = tmdbData.getNextEpisodeSeasonNumber();
+        Integer episodeNumber = tmdbData.getNextEpisodeNumber();
+        if (nextAirDate == null || seasonNumber == null || episodeNumber == null) return;
+
+        LocalDate today = LocalDate.now();
+        if (!nextAirDate.equals(today) && !nextAirDate.equals(today.plusDays(1))) return;
+
+        String episodeCode = buildEpisodeCode(seasonNumber, episodeNumber);
+        if (notificationRepository.existsByUserIdAndTmdbIdAndEpisodeCode(
+                userId, series.getTmdbId(), episodeCode)) return;
+
+        saveNotification(userId, series, episodeCode, nextAirDate);
+    }
+
+    private void saveNotification(Long userId, UserSeries series, String episodeCode, LocalDate airDate) {
+        Notification notification = Notification.builder()
+                .userId(userId)
+                .tmdbId(series.getTmdbId())
+                .seriesTitle(series.getTitle())
+                .episodeCode(episodeCode)
+                .airDate(airDate)
+                .read(false)
+                .build();
+
+        notificationRepository.save(notification);
+        log.info("Notification created for userId={} series='{}' episodeCode={} airDate={}",
+                userId, series.getTitle(), episodeCode, airDate);
     }
 
     private String buildEpisodeCode(Integer seasonNumber, Integer episodeNumber) {

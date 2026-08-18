@@ -42,89 +42,82 @@ seritracker-api/
     │
     ├── domain/
     │   ├── model/
-    │   │   ├── Series.java           ← resultado de búsqueda en TMDB (transitorio, no se persiste)
-    │   │   ├── SeriesStatus.java     ← enum: WATCHING, WANT_TO_WATCH, COMPLETED, ABANDONED
-    │   │   ├── User.java
-    │   │   ├── UserSeries.java       ← la serie DENTRO de la lista de un usuario (sí se persiste)
+    │   │   ├── Series.java, SeasonSummary.java     ← resultado de búsqueda/detalle en TMDB (transitorio, no se persiste)
+    │   │   ├── SeriesStatus.java, SeriesSortBy.java, SortDirection.java
+    │   │   ├── User.java, UserSeries.java           ← UserSeries es la serie DENTRO de la lista de un usuario (sí se persiste)
+    │   │   ├── EpisodeWatch.java, Episode.java, EpisodeInfo.java, NextEpisode.java,
+    │   │   │   SeasonProgress.java, SeriesEpisodesSummary.java   ← seguimiento episodio a episodio
+    │   │   ├── UpcomingEpisode.java                 ← calendario de estrenos
+    │   │   ├── UserStats.java, YearSummary.java, Badge.java, BadgeCode.java, GenreStat.java  ← estadísticas
     │   │   ├── Notification.java
-    │   │   ├── PageRequest.java      ← page/size, agnóstico de Spring Data
-    │   │   └── PageResult.java       ← content/page/size/totalElements/totalPages
+    │   │   ├── AuthResult.java, RefreshToken.java, PasswordResetToken.java
+    │   │   └── PageRequest.java, PageResult.java    ← page/size, agnóstico de Spring Data
     │   ├── port/
     │   │   ├── in/
-    │   │   │   ├── CreateSeriesUseCase.java
-    │   │   │   ├── UpdateSeriesUseCase.java
-    │   │   │   ├── DeleteSeriesUseCase.java
-    │   │   │   ├── SearchSeriesUseCase.java
+    │   │   │   ├── CreateSeriesUseCase.java, UpdateSeriesUseCase.java, DeleteSeriesUseCase.java,
+    │   │   │   │   SearchSeriesUseCase.java
+    │   │   │   ├── EpisodeTrackingUseCase.java, CheckUpcomingEpisodesUseCase.java, CalendarUseCase.java
+    │   │   │   ├── StatsUseCase.java
     │   │   │   ├── NotificationUseCase.java
-    │   │   │   └── CheckUpcomingEpisodesUseCase.java
+    │   │   │   └── AuthUseCase.java
     │   │   └── out/
-    │   │       ├── UserRepository.java
-    │   │       ├── UserSeriesRepository.java
-    │   │       ├── NotificationRepository.java
+    │   │       ├── UserRepository.java, UserSeriesRepository.java, EpisodeWatchRepository.java,
+    │   │       │   NotificationRepository.java
+    │   │       ├── RefreshTokenRepository.java, PasswordResetTokenRepository.java
+    │   │       ├── TokenService.java, EmailSender.java
     │   │       └── TmdbClient.java
     │   └── exception/
-    │       ├── SeriesNotFoundException.java
-    │       ├── DuplicateSeriesException.java
-    │       └── NotificationNotFoundException.java
+    │       ├── SeriesNotFoundException.java, DuplicateSeriesException.java, NotificationNotFoundException.java
+    │       └── InvalidRefreshTokenException.java, InvalidResetTokenException.java
     │
     ├── application/
     │   └── service/
-    │       ├── SeriesService.java
-    │       ├── AuthService.java             ← depende del puerto UserRepository, no de JPA
+    │       ├── SeriesService.java, SeriesLookup.java   ← lookup+ownership check compartido entre servicios de series
+    │       ├── EpisodeTrackingService.java  ← progreso por temporada, backfill del contador legado, próximo episodio
+    │       ├── EpisodeCheckService.java     ← job diario: decide qué notificar (próximos episodios)
+    │       ├── CalendarService.java         ← próximos episodios de las series en "viendo"
+    │       ├── StatsService.java            ← rachas, badges, géneros, resumen del año
     │       ├── NotificationService.java     ← CRUD de notificaciones (listar, marcar leída)
-    │       └── EpisodeCheckService.java     ← decide qué notificar (próximos episodios)
+    │       └── AuthService.java             ← depende de puertos (UserRepository, TokenService, EmailSender...), no de JPA/JWT concretos
     │
     └── infrastructure/
         ├── adapter/
         │   ├── in/
         │   │   └── rest/
-        │   │       ├── SeriesController.java
-        │   │       ├── AuthController.java
-        │   │       ├── NotificationController.java
-        │   │       ├── TmdbController.java
+        │   │       ├── SeriesController.java     ← series + progreso de episodios (`/seasons/**`)
+        │   │       ├── CalendarController.java, StatsController.java
+        │   │       ├── AuthController.java, NotificationController.java, TmdbController.java
         │   │       └── dto/
-        │   │           ├── request/
-        │   │           │   ├── CreateSeriesRequest.java
-        │   │           │   ├── UpdateStatusRequest.java
-        │   │           │   ├── UpdateRatingRequest.java
-        │   │           │   ├── UpdateEpisodesRequest.java
-        │   │           │   ├── LoginRequest.java
-        │   │           │   └── RegisterRequest.java
-        │   │           └── response/
-        │   │               ├── SeriesResponse.java
-        │   │               ├── NotificationResponse.java
-        │   │               ├── AuthResponse.java
-        │   │               ├── PageResponse.java   ← envoltorio genérico de paginación
-        │   │               └── ApiResponse.java
+        │   │           ├── request/    ← Create/Update*Request, Mark(Episode|Season)Request, Login/Register/RefreshToken/
+        │   │           │                 ChangePassword/Forgot(Password)/ResetPasswordRequest
+        │   │           └── response/   ← *Response por cada modelo de dominio expuesto + PageResponse (paginación genérica)
+        │   │                             y ApiResponse (envoltorio estándar)
         │   └── out/
         │       ├── persistence/
-        │       │   ├── UserRepositoryAdapter.java
-        │       │   ├── UserSeriesRepositoryAdapter.java
-        │       │   ├── NotificationRepositoryAdapter.java
-        │       │   ├── entity/
-        │       │   │   ├── UserEntity.java
-        │       │   │   ├── UserSeriesEntity.java   ← tiene @Version (locking optimista)
-        │       │   │   └── NotificationEntity.java
-        │       │   └── mapper/
-        │       │       ├── UserMapper.java
-        │       │       ├── UserSeriesMapper.java
-        │       │       └── NotificationMapper.java
+        │       │   ├── UserRepositoryAdapter.java, UserSeriesRepositoryAdapter.java, EpisodeWatchRepositoryAdapter.java,
+        │       │   │   NotificationRepositoryAdapter.java, RefreshTokenRepositoryAdapter.java,
+        │       │   │   PasswordResetTokenRepositoryAdapter.java
+        │       │   ├── Jpa*Repository.java   ← Spring Data, uno por agregado
+        │       │   ├── PageResultMapper.java ← Page<Entity> de Spring Data → PageResult de dominio
+        │       │   ├── entity/   ← *Entity.java; UserSeriesEntity tiene @Version (locking optimista)
+        │       │   └── mapper/   ← *Mapper.java, uno por entidad
+        │       ├── email/
+        │       │   └── SmtpEmailSenderAdapter.java   ← implementa EmailSender (recuperación de contraseña)
         │       └── tmdb/
         │           ├── TmdbClientAdapter.java       ← usa RestClient, no RestTemplate
         │           └── dto/
-        │               ├── TmdbSearchResponse.java
-        │               └── TmdbSeriesResponse.java
+        │               ├── TmdbSearchResponse.java, TmdbSeasonResponse.java, TmdbSeriesResponse.java
         ├── config/
         │   ├── SecurityConfig.java    ← CORS, CSRF off, stateless, permitAll de auth/tmdb/swagger
-        │   ├── SwaggerConfig.java
-        │   └── GlobalExceptionHandler.java
+        │   ├── SwaggerConfig.java, RateLimitConfig.java
+        │   └── GlobalExceptionHandler.java   ← @RestControllerAdvice; ver nota de logging más abajo
         ├── security/
-        │   ├── JwtService.java              ← genera/valida token, embebe userId + role como claims
-        │   ├── JwtAuthFilter.java
-        │   ├── UserDetailsServiceImpl.java
-        │   ├── UserPrincipal.java           ← lo que llega a los controllers vía @AuthenticationPrincipal
-        │   ├── LoginRateLimiter.java         ← contador en memoria por IP
-        │   └── LoginRateLimitFilter.java     ← responde 429 antes de llegar al controller
+        │   ├── JwtService.java                 ← genera/valida token, embebe userId + role como claims
+        │   ├── JwtAuthFilter.java, JwtAuthenticationEntryPoint.java
+        │   ├── UserPrincipal.java              ← lo que llega a los controllers vía @AuthenticationPrincipal
+        │   ├── RateLimiter.java                ← contador en memoria por IP, reutilizado por los 3 filtros de abajo
+        │   ├── AbstractRateLimitFilter.java     ← responde 429 antes de llegar al controller
+        │   └── Login/Register/ForgotPasswordRateLimitFilter.java   ← una instancia por endpoint sensible
         └── logging/
             └── MdcFilter.java             ← Inyecta requestId en cada request
 ```
@@ -200,22 +193,47 @@ GET    /api/v1/series/{id}                 ← detalle de una serie
 POST   /api/v1/series                      ← agregar serie a la lista
 PATCH  /api/v1/series/{id}/status          ← cambiar estado
 PATCH  /api/v1/series/{id}/rating          ← calificar
-PATCH  /api/v1/series/{id}/episodes        ← actualizar episodios vistos
+PATCH  /api/v1/series/{id}/notes           ← actualizar notas
 DELETE /api/v1/series/{id}                 ← eliminar de la lista
+
+# Episodios — requieren JWT; ver EpisodeTrackingUseCase/EpisodeTrackingService
+GET    /api/v1/series/{id}/seasons                                       ← progreso por temporada + próximo episodio
+GET    /api/v1/series/{id}/seasons/{seasonNumber}/episodes                ← detalle de episodios de una temporada
+PATCH  /api/v1/series/{id}/seasons/{seasonNumber}/episodes/{episodeNumber} ← marcar un episodio visto/no visto
+PATCH  /api/v1/series/{id}/seasons/{seasonNumber}/watch-all                ← marcar toda la temporada como vista
+
+# Calendario — requiere JWT
+GET    /api/v1/calendar/upcoming           ← próximos episodios de las series en "viendo" (ver nota de paginación abajo)
+
+# Estadísticas — requiere JWT
+GET    /api/v1/stats                       ← rachas, badges, géneros, resumen del año actual (StatsService)
 
 # Notificaciones — requieren JWT
 GET    /api/v1/notifications?page=&size=   ← no leídas, paginado
 PATCH  /api/v1/notifications/{id}/read     ← marcar como leída
 POST   /api/v1/notifications/check         ← disparar verificación manual
 
-# Autenticación — públicos; /login con rate limiting propio
+# Autenticación — /register, /login y /forgot-password públicos, con rate limiting propio;
+# el resto requiere JWT salvo /refresh (usa el refresh token, no el access token)
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
+POST   /api/v1/auth/refresh          ← rota el refresh token usado
+POST   /api/v1/auth/logout           ← revoca el refresh token
+PATCH  /api/v1/auth/password         ← cambiar contraseña (requiere la actual)
+POST   /api/v1/auth/forgot-password  ← siempre responde igual, exista o no el email
+POST   /api/v1/auth/reset-password   ← con el token recibido por correo
 
 # TMDB — públicos
 GET    /api/v1/tmdb/search?q=query       ← buscar series
 GET    /api/v1/tmdb/series/{tmdbId}      ← detalle de serie en TMDB
 ```
+
+**Nota sobre paginación en `/api/v1/calendar/upcoming`:** es el único endpoint de lista sin
+paginar fuera de `/tmdb/search` (que ya estaba documentado como excepción). Es deliberado:
+el resultado está acotado por construcción a un episodio próximo por serie en estado
+"viendo", así que su tamaño ya está limitado por cuántas series sigue activamente el
+usuario — nunca crece de forma independiente como sí puede pasar con `/series` o
+`/notifications`. Forzarle paginación agregaría un parámetro sin beneficio real.
 
 Ver `SecurityConfig.filterChain()` para la lista exacta de rutas públicas
 (`permitAll`) — todo lo que no está ahí requiere `Authorization: Bearer <token>`.
@@ -364,11 +382,12 @@ logs: add request tracing to SeriesService
 | Capa | Niveles permitidos | Cuándo usarlos |
 |------|--------------------|----------------|
 | `domain/` | ❌ Sin logs | El dominio no conoce infraestructura |
-| `application/service/` | `INFO`, `WARN`, `ERROR` | Flujos de negocio, errores de dominio |
+| `application/service/` | `INFO`/`WARN`/`ERROR` para mutaciones y errores de dominio; `DEBUG` permitido en lecturas puras (listar, buscar por id) | No inflar `INFO` con cada GET; una mutación siempre deja rastro en `INFO` o más |
 | `infrastructure/adapter/in/rest/` | `DEBUG` | Entrada de requests, parámetros |
 | `infrastructure/adapter/out/persistence/` | `DEBUG` | Queries, operaciones BD |
 | `infrastructure/adapter/out/tmdb/` | `INFO`, `WARN`, `ERROR` | Llamadas externas, fallos de API |
-| `infrastructure/config/` | `INFO` | Arranque, configuración |
+| `infrastructure/config/` (arranque/wiring) | `INFO` | Arranque, configuración |
+| `infrastructure/config/GlobalExceptionHandler` (`@RestControllerAdvice`) | `WARN`/`ERROR` | Es manejo de errores, no arranque — sigue la tabla "Tipo de log por situación" de abajo, no la fila genérica de `config/` |
 | `infrastructure/security/` | `WARN`, `ERROR` | Intentos fallidos, tokens inválidos |
 
 ### Qué se loguea
@@ -447,13 +466,14 @@ Configurado en `src/main/resources/logback-spring.xml`.
 
 ## Estructura de Tests
 
-105 tests en total. Ver el desglose completo en
+195 tests en total. Ver el desglose completo en
 [`seritracker-api/README.md`](./README.md#estructura-de-tests) — acá solo
 el resumen por capa:
 
 ```
 src/test/java/com/seritracker/
-├── application/service/     ← unitarios con mocks (SeriesService, AuthService)
+├── application/service/     ← unitarios con mocks (SeriesService, AuthService, CalendarService,
+│                               EpisodeCheckService, EpisodeTrackingService, StatsService)
 ├── domain/exception/        ← dominio puro
 ├── integration/
 │   └── PostgresIntegrationTest.java   ← Flyway + JPA contra Postgres real

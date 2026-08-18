@@ -42,11 +42,20 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
         backfillIfNeeded(series, seasons);
 
         List<EpisodeWatch> watched = episodeWatchRepository.findByUserSeriesId(seriesId);
+        List<SeasonProgress> seasonProgress = buildSeasonProgress(seasons, watched);
+        NextEpisode nextEpisode = computeNextEpisode(series.getTmdbId(), seasons, toKeys(watched));
+
+        return SeriesEpisodesSummary.builder()
+                .seasons(seasonProgress)
+                .nextEpisode(nextEpisode)
+                .build();
+    }
+
+    private List<SeasonProgress> buildSeasonProgress(List<SeasonSummary> seasons, List<EpisodeWatch> watched) {
         Map<Integer, Long> watchedCountBySeason = watched.stream()
                 .collect(Collectors.groupingBy(EpisodeWatch::getSeasonNumber, Collectors.counting()));
-        Set<String> watchedKeys = toKeys(watched);
 
-        List<SeasonProgress> seasonProgress = seasons.stream()
+        return seasons.stream()
                 .map(s -> SeasonProgress.builder()
                         .seasonNumber(s.getSeasonNumber())
                         .name(s.getName())
@@ -54,13 +63,6 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
                         .watchedCount(watchedCountBySeason.getOrDefault(s.getSeasonNumber(), 0L).intValue())
                         .build())
                 .toList();
-
-        NextEpisode nextEpisode = computeNextEpisode(series.getTmdbId(), seasons, watchedKeys);
-
-        return SeriesEpisodesSummary.builder()
-                .seasons(seasonProgress)
-                .nextEpisode(nextEpisode)
-                .build();
     }
 
     @Override
@@ -151,6 +153,13 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
 
         log.info("Backfilling {} watched episodes for seriesId={} from legacy counter", watchedCount, series.getId());
 
+        List<EpisodeWatch> toInsert = buildBackfillWatches(series.getId(), seasons, watchedCount);
+        if (!toInsert.isEmpty()) {
+            episodeWatchRepository.saveAll(toInsert);
+        }
+    }
+
+    private List<EpisodeWatch> buildBackfillWatches(Long seriesId, List<SeasonSummary> seasons, int watchedCount) {
         List<EpisodeWatch> toInsert = new ArrayList<>();
         int remaining = watchedCount;
         for (SeasonSummary season : seasons) {
@@ -158,31 +167,38 @@ public class EpisodeTrackingService implements EpisodeTrackingUseCase {
             int episodesInSeason = Math.min(remaining, season.getEpisodeCount());
             for (int ep = 1; ep <= episodesInSeason; ep++) {
                 toInsert.add(EpisodeWatch.builder()
-                        .userSeriesId(series.getId())
+                        .userSeriesId(seriesId)
                         .seasonNumber(season.getSeasonNumber())
                         .episodeNumber(ep)
                         .build());
             }
             remaining -= episodesInSeason;
         }
-
-        if (!toInsert.isEmpty()) {
-            episodeWatchRepository.saveAll(toInsert);
-        }
+        return toInsert;
     }
 
     private NextEpisode computeNextEpisode(Integer tmdbId, List<SeasonSummary> seasons, Set<String> watchedKeys) {
+        UnwatchedSlot slot = findFirstUnwatched(seasons, watchedKeys);
+        if (slot == null) return null;
+
+        Episode episode = fetchEpisode(tmdbId, slot.seasonNumber(), slot.episodeNumber());
+        if (episode == null) return null;
+
+        return NextEpisode.builder()
+                .seasonNumber(slot.seasonNumber())
+                .episodeNumber(slot.episodeNumber())
+                .title(episode.getTitle())
+                .airDate(episode.getAirDate())
+                .build();
+    }
+
+    private record UnwatchedSlot(Integer seasonNumber, Integer episodeNumber) {}
+
+    private UnwatchedSlot findFirstUnwatched(List<SeasonSummary> seasons, Set<String> watchedKeys) {
         for (SeasonSummary season : seasons) {
             for (int ep = 1; ep <= season.getEpisodeCount(); ep++) {
                 if (!watchedKeys.contains(key(season.getSeasonNumber(), ep))) {
-                    Episode episode = fetchEpisode(tmdbId, season.getSeasonNumber(), ep);
-                    if (episode == null) return null;
-                    return NextEpisode.builder()
-                            .seasonNumber(season.getSeasonNumber())
-                            .episodeNumber(ep)
-                            .title(episode.getTitle())
-                            .airDate(episode.getAirDate())
-                            .build();
+                    return new UnwatchedSlot(season.getSeasonNumber(), ep);
                 }
             }
         }
